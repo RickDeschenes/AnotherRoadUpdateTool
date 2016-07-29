@@ -7,9 +7,11 @@ using System.Text;
 
 namespace AnotherRoadUpdate
 {
-    class UserSettings
+    internal class UserSettings
     {
-        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Curves", "Roads", "Railroads", "Highways", "PowerLines", "Pipes", "Buildings", "Trees", "Props", "Ground", "Bridge", "Toggle", "Tunnel", "Update", "Delete", "Services" };
+        #region Declarations
+
+        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Curves", "Roads", "Railroads", "Highways", "PowerLines", "WaterPipes", "HeatPipes", "Airplanes", "Shipping", "Buildings", "Trees", "Props", "Ground", "Bridge", "Slope", "Tunnel", "Update", "Delete", "Services", "Toggle" };
 
         private bool _basic;
         private bool _large;
@@ -26,17 +28,21 @@ namespace AnotherRoadUpdate
         private bool _railroads;
         private bool _highways;
         private bool _powerLines;
-        private bool _pipes;
+        private bool _waterpipes;
+        private bool _heatpipes;
+        private bool _airplanes;
+        private bool _shipping;
         private bool _buildings;
         private bool _trees;
         private bool _props;
         private bool _ground;
         private bool _bridge;
+        private bool _slope;
         private bool _tunnel;
-        private bool _toggle;
         private bool _update;
         private bool _delete;
         private bool _services;
+        private bool _toggle;
         public bool Basic { get { return _basic; } set { _basic = value; } }
         public bool Large { get { return _large; } set { _large = value; } }
         public bool Highway { get { return _highway; } set { _highway = value; } }
@@ -52,29 +58,41 @@ namespace AnotherRoadUpdate
         public bool Railroads { get { return _railroads; } set { _railroads = value; } }
         public bool Highways { get { return _highways; } set { _highways = value; } }
         public bool PowerLines { get { return _powerLines; } set { _powerLines = value; } }
-        public bool Pipes { get { return _pipes; } set { _pipes = value; } }
+        public bool WaterPipes { get { return _waterpipes; } set { _waterpipes = value; } }
+        public bool HeatPipes { get { return _heatpipes; } set { _heatpipes = value; } }
+        public bool Airplanes { get { return _airplanes; } set { _airplanes = value; } }
+        public bool Shipping { get { return _shipping; } set { _shipping = value; } }
         public bool Buildings { get { return _buildings; } set { _buildings = value; } }
         public bool Trees { get { return _trees; } set { _trees = value; } }
         public bool Props { get { return _props; } set { _props = value; } }
         public bool Ground { get { return _ground; } set { _ground = value; } }
         public bool Bridge { get { return _bridge; } set { _bridge = value; } }
+        public bool Slope { get { return _slope; } set { _slope = value; } }
         public bool Tunnel { get { return _tunnel; } set { _tunnel = value; } }
-        public bool Toggle { get { return _toggle; } set { _toggle = value; } }
         public bool Update { get { return _update; } set { _update = value; } }
         public bool Delete { get { return _delete; } set { _delete = value; } }
         public bool Services { get { return _services; } set { _services = value; } }
+        public bool Toggle { get { return _toggle; } set { _toggle = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
         private string us = fileName;
         private XmlDocument xml = new XmlDocument();
 
+        #endregion
+
         public UserSettings()
         {
+            bool create = true;
+
+            //Do we have a file?
             if (File.Exists(us))
             {
                 xml.Load(us);
+                //was it any good?
+                create = (xml.SelectSingleNode("UserSettings") == null);
             }
-            else
+            //if we need to create a new file
+            if (create)
             {
                 CreateSettings();
             }
@@ -101,17 +119,21 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/Railroads").InnerText = Railroads.ToString();
                 xml.SelectSingleNode("UserSettings/Highways").InnerText = Highways.ToString();
                 xml.SelectSingleNode("UserSettings/PowerLines").InnerText = PowerLines.ToString();
-                xml.SelectSingleNode("UserSettings/Pipes").InnerText = Pipes.ToString();
+                xml.SelectSingleNode("UserSettings/WaterPipes").InnerText = WaterPipes.ToString();
+                xml.SelectSingleNode("UserSettings/HeatPipes").InnerText = HeatPipes.ToString();
+                xml.SelectSingleNode("UserSettings/Airplanes").InnerText = Airplanes.ToString();
+                xml.SelectSingleNode("UserSettings/Shipping").InnerText = Shipping.ToString();
                 xml.SelectSingleNode("UserSettings/Buildings").InnerText = Buildings.ToString();
                 xml.SelectSingleNode("UserSettings/Trees").InnerText = Trees.ToString();
                 xml.SelectSingleNode("UserSettings/Props").InnerText = Props.ToString();
                 xml.SelectSingleNode("UserSettings/Ground").InnerText = Ground.ToString();
                 xml.SelectSingleNode("UserSettings/Bridge").InnerText = Bridge.ToString();
-                xml.SelectSingleNode("UserSettings/Toggle").InnerText = Toggle.ToString();
+                xml.SelectSingleNode("UserSettings/Slope").InnerText = Bridge.ToString();
                 xml.SelectSingleNode("UserSettings/Tunnel").InnerText = Tunnel.ToString();
                 xml.SelectSingleNode("UserSettings/Update").InnerText = Update.ToString();
                 xml.SelectSingleNode("UserSettings/Delete").InnerText = Delete.ToString();
                 xml.SelectSingleNode("UserSettings/Services").InnerText = Services.ToString();
+                xml.SelectSingleNode("UserSettings/Toggle").InnerText = Toggle.ToString();
             }
             catch (Exception ex)
             {
@@ -122,38 +144,59 @@ namespace AnotherRoadUpdate
 
         private void FillSettings()
         {
-            XmlNode nd = xml.SelectSingleNode("UserSettings/Basic");
+            _basic = ValidateSetting("Basic");
+            _large = ValidateSetting("Large");
+            _highway = ValidateSetting("Highway");
+            _medium = ValidateSetting("Medium");
+            _oneway = ValidateSetting("Oneway");
+            _toBasic = ValidateSetting("ToBasic");
+            _toLarge = ValidateSetting("ToLarge");
+            _toHighway = ValidateSetting("ToHighway");
+            _toMedium = ValidateSetting("ToMedium");
+            _toOneway = ValidateSetting("ToOneway");
+            _curves = ValidateSetting("Curves");
+            _roads = ValidateSetting("Roads");
+            _railroads = ValidateSetting("Railroads");
+            _highways = ValidateSetting("Highways");
+            _powerLines = ValidateSetting("PowerLines");
+            _waterpipes = ValidateSetting("WaterPipes");
+            _heatpipes = ValidateSetting("HeatPipes");
+            _airplanes = ValidateSetting("Airplanes");
+            _shipping = ValidateSetting("Shipping");
+            _buildings = ValidateSetting("Buildings");
+            _trees = ValidateSetting("Trees");
+            _props = ValidateSetting("Props");
+            _ground = ValidateSetting("Ground");
+            _bridge = ValidateSetting("Bridge");
+            _bridge = ValidateSetting("Slope");
+            _tunnel = ValidateSetting("Tunnel");
+            _update = ValidateSetting("Update");
+            _delete = ValidateSetting("Delete");
+            _services = ValidateSetting("Services");
+            _toggle = ValidateSetting("Toggle");
+        }
 
-            _basic = (xml.SelectSingleNode("UserSettings/Basic").InnerText == "True");
-            _large = (xml.SelectSingleNode("UserSettings/Large").InnerText == "True");
-            _highway = (xml.SelectSingleNode("UserSettings/Highway").InnerText == "True");
-            _medium = (xml.SelectSingleNode("UserSettings/Medium").InnerText == "True");
-            _oneway = (xml.SelectSingleNode("UserSettings/Oneway").InnerText == "True");
-            _toBasic = (xml.SelectSingleNode("UserSettings/ToBasic").InnerText == "True");
-            _toLarge = (xml.SelectSingleNode("UserSettings/ToLarge").InnerText == "True");
-            _toHighway = (xml.SelectSingleNode("UserSettings/ToHighway").InnerText == "True");
-            _toMedium = (xml.SelectSingleNode("UserSettings/ToMedium").InnerText == "True");
-            _toOneway = (xml.SelectSingleNode("UserSettings/ToOneway").InnerText == "True");
-            _curves = (xml.SelectSingleNode("UserSettings/Curves").InnerText == "True");
-            _roads = (xml.SelectSingleNode("UserSettings/Roads").InnerText == "True");
-            _railroads = (xml.SelectSingleNode("UserSettings/Railroads").InnerText == "True");
-            _highways = (xml.SelectSingleNode("UserSettings/Highways").InnerText == "True");
-            _powerLines = (xml.SelectSingleNode("UserSettings/PowerLines").InnerText == "True");
-            _pipes = (xml.SelectSingleNode("UserSettings/Pipes").InnerText == "True");
-            _buildings = (xml.SelectSingleNode("UserSettings/Buildings").InnerText == "True");
-            _trees = (xml.SelectSingleNode("UserSettings/Trees").InnerText == "True");
-            _props = (xml.SelectSingleNode("UserSettings/Props").InnerText == "True");
-            _ground = (xml.SelectSingleNode("UserSettings/Ground").InnerText == "True");
-            _bridge = (xml.SelectSingleNode("UserSettings/Bridge").InnerText == "True");
-            _toggle = (xml.SelectSingleNode("UserSettings/Toggle").InnerText == "True");
-            _tunnel = (xml.SelectSingleNode("UserSettings/Tunnel").InnerText == "True");
-            _update = (xml.SelectSingleNode("UserSettings/Update").InnerText == "True");
-            _delete = (xml.SelectSingleNode("UserSettings/Delete").InnerText == "True");
-            _services = (xml.SelectSingleNode("UserSettings/Services").InnerText == "True");
+        private bool ValidateSetting(string node)
+        {
+            //we already validated the file exists and has our node "UserSettings"
+            bool setting = false;
+            //create a new node
+            if (xml.SelectSingleNode("UserSettings/" + node) == null)
+            {
+                XmlNode tb = xml.SelectSingleNode("UserSettings");
+                XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
+                nd.InnerText = false.ToString();
+                RoadUpdateTool.WriteLog("creating a node: " + node);
+                tb.AppendChild(nd);
+            }
+            //we have a node get the value
+            setting = (xml.SelectSingleNode("UserSettings/" + node).InnerText == "True");
+            return setting;
         }
 
         public void CreateSettings()
         {
+            RoadUpdateTool.WriteLog("entring CreateSettings");
             xml = new XmlDocument();
             XmlDeclaration xmlDeclaration = xml.CreateXmlDeclaration("1.0", "UTF-8", null);
             XmlElement root = xml.DocumentElement;
@@ -168,6 +211,7 @@ namespace AnotherRoadUpdate
                 table.AppendChild(node);
             }
             xml.Save(us);
+            RoadUpdateTool.WriteLog("leaving CreateSettings");
         }
     }
 }

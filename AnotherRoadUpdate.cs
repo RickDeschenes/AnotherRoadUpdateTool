@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.Collections;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using ColossalFramework;
 using ColossalFramework.Math;
 using ColossalFramework.UI;
 using ICities;
 using UnityEngine;
+using System.Reflection;
+using System.Diagnostics;
 
 /// <summary>
 /// Updated from SkylinesRoadUpdate added global preferences
@@ -18,7 +21,10 @@ namespace AnotherRoadUpdate
 {
     public class RoadUpdateTool : DefaultTool
     {
-        #region "Declarations"
+        #region Declarations
+
+        #region enums
+
         private enum Ups
         {
             Basic = 0,
@@ -27,35 +33,63 @@ namespace AnotherRoadUpdate
             Medium = 3,
             Oneway = 4
         }
+
         private enum p
         {
             Roads = 0,
             Railroads = 1,
             Highways = 2,
             PowerLines = 3,
-            Pipes = 4,
-            Buildings = 5,
-            Trees = 6,
-            Props = 7,
-            Bridge = 8,
-            Ground = 9,
-            Tunnel = 10
+            WaterPipes = 4,
+            HeatPipes = 5,
+            Airplanes = 6,
+            Shipping = 7,
+            Ground = 8,
+            Bridge = 9,
+            Slope = 10,
+            Tunnel = 11,
+            Buildings = 12,
+            Trees = 13,
+            Props = 14
         }
 
+        private enum ops
+        {
+            Updates = 0,
+            Deletes = 1,
+            Services = 2
+        }
+
+        private enum dl
+        {
+            Toggle = 0,
+            HealthCare = 1,
+            PoliceDepartment = 2,
+            FireDepartment = 3,
+            PublicTransport = 4,
+            Education = 5,
+            Electricity = 6,
+            Water = 7,
+            Garbage = 8,
+            Beautification = 9,
+            Monument = 10
+        }
+
+        #endregion
+
+        #region Variables
+
         private object m_dataLock = new object();
-        
+
         private bool m_active;
-        private bool m_oldLog;
         private bool m_selectable;
         private bool m_fromTypes;
         private bool m_toTypes;
-        private bool m_fromRoads;
         private bool m_toRoads;
-        private bool m_Updates;
+        private bool m_fromRoads;
+        private bool m_updates;
         private bool m_settings;
-
-        private new bool m_mouseRayValid;
-
+        
         private string fromSelected = string.Empty;
         private string toSelected = string.Empty;
 
@@ -64,7 +98,7 @@ namespace AnotherRoadUpdate
         private Vector3 m_mouseDirection;
         private Vector3 m_cameraDirection;
         private new Vector3 m_mousePosition;
-
+        private new bool m_mouseRayValid;
         private new Ray m_mouseRay;
         private new float m_mouseRayLength;
 
@@ -72,44 +106,65 @@ namespace AnotherRoadUpdate
 
         private float m_maxArea = 400f;
 
-        private int m_topOfOptions;
-        private int m_top = 0;
-        private int m_left = 0;
-
         private UIButton mainButton;
         private UIPanel plMain;
         private UIPanel plOptions;
-        private UIPanel plTypes;
         private UIPanel plRoads;
+        private UIPanel plDelete;
+        private UIPanel plServices;
+        private UIPanel plBasic;
         private UIPanel plHighway;
         private UIPanel plLarge;
         private UIPanel plMedium;
         private UIPanel plOneway;
-        private UIPanel plDelete;
+        private UIPanel plToBasic;
+        private UIPanel plToHighway;
+        private UIPanel plToLarge;
+        private UIPanel plToMedium;
+        private UIPanel plToOneway;
 
-        private UILabel lFrom;
-        private UILabel lTo;
         private UILabel lOptions;
         private UILabel lLines;
         private UILabel lProperties;
         private UILabel lSelectable;
+        private UIButton btHelp;
 
-        private UICheckBox cbDelete;
-        private UICheckBox cbUpdate;
-        private UICheckBox cbServices;
-        private UICheckBox cbToggle;        
+        private UICheckBox cbCurved;
+
+        List<UICheckBox> options = new List<UICheckBox>();
+        List<UICheckBox> deletes = new List<UICheckBox>();
+        List<UICheckBox> services = new List<UICheckBox>();
 
         List<UICheckBox> toTypes = new List<UICheckBox>();
         List<UICheckBox> fromTypes = new List<UICheckBox>();
+        
+        List<UICheckBox> toBasic = new List<UICheckBox>();
+        List<UICheckBox> fromBasic = new List<UICheckBox>();
 
-        List<UICheckBox> toRoads = new List<UICheckBox>();
-        List<UICheckBox> fromRoads = new List<UICheckBox>();
-        List<UICheckBox> delTypes = new List<UICheckBox>();
+        List<UICheckBox> toLarge = new List<UICheckBox>();
+        List<UICheckBox> fromLarge = new List<UICheckBox>();
 
-        private string[] m_options = new string[] { "Label Discription","Updates", "Delete", "Services", "Label Select" };
-        private string[] m_roads = new string[] { "Basic Road Bicycle", "Basic Road Decoration Grass", "Basic Road Decoration Trees", "Basic Road Elevated Bike", "Basic Road Elevated Tram", "Basic Road Elevated", "Basic Road Slope", "Basic Road Tram", "Basic Road Tunnel Bike", "Basic Road Tunnel Tram", "Basic Road Tunnel", "Basic Road", "Gravel Road", "Highway Barrier", "Highway Barrier", "Highway Elevated", "Highway Tunnel", "Highway", "HighwayRamp Tunnel", "HighwayRamp", "HighwayRampElevated", "Large Oneway Decoration Grass", "Large Oneway Decoration Trees", "Large Oneway Elevated", "Large Oneway Road Tunnel", "Large Oneway", "Large Road Bicycle", "Large Road Bus", "Large Road Decoration Grass", "Large Road Decoration Trees", "Large Road Elevated Bike", "Large Road Elevated Bus", "Large Road Elevated", "Large Road Tunnel Bus", "Large Road Tunnel", "Large Road", "Medium Road Bicycle", "Medium Road Bus", "Medium Road Decoration Grass", "Medium Road Decoration Trees", "Medium Road Elevated Bike", "Medium Road Elevated Bus", "Medium Road Elevated Tram", "Medium Road Elevated", "Medium Road Tram", "Medium Road Tunnel Bus", "Medium Road Tunnel Tram", "Medium Road Tunnel", "Medium Road", "Oneway Road Decoration Grass", "Oneway Road Decoration Trees", "Oneway Road Elevated Tram", "Oneway Road Elevated", "Oneway Road Tram", "Oneway Road Tunnel Tram", "Oneway Road Tunnel", "Oneway Road", "Oneway Tram Track" };
-        private string[] m_types = new string[] { "Basic", "Highway", "Large", "Medium", "Oneway" };
-        private string[] m_deletes = new string[] { "Label Lines", "Roads", "Railroads", "Highways", "PowerLines", "Pipes", "Label Properties", "Buildings", "Trees", "Props", "Label Options", "Bridge", "Ground", "Tunnel" };
+        List<UICheckBox> toHighway = new List<UICheckBox>();
+        List<UICheckBox> fromHighway = new List<UICheckBox>();
+
+        List<UICheckBox> toMedium = new List<UICheckBox>();
+        List<UICheckBox> fromMedium = new List<UICheckBox>();
+
+        List<UICheckBox> toOneway = new List<UICheckBox>();
+        List<UICheckBox> fromOneway = new List<UICheckBox>();
+        
+        #endregion
+
+        //These strings are importent in that they control the interface
+        private string[] m_options = new string[] { "Label Discription","Updates", "Deletes", "Services", "Label Selectable" };
+        private string[] m_roads = new string[] { "Label ToFrom", "Basic", "Highway", "Large", "Medium", "Oneway" };
+        private string[] m_basic = new string[] { "Gravel Road", "Basic Road", "Basic Road Bicycle", "Basic Road Decoration Grass", "Basic Road Decoration Trees", "Basic Road Elevated Bike", "Basic Road Elevated Tram", "Basic Road Elevated", "Basic Road Slope", "Basic Road Tram", "Basic Road Tunnel Bike", "Basic Road Tunnel Tram", "Basic Road Tunnel" };
+        private string[] m_highway = new string[] { "Highway Barrier", "Highway Elevated", "Highway Tunnel", "Highway", "HighwayRamp Tunnel", "HighwayRamp", "HighwayRampElevated" };
+        private string[] m_large = new string[] { "Large Oneway Decoration Grass", "Large Oneway Decoration Trees", "Large Oneway Elevated", "Large Oneway Road Tunnel", "Large Oneway", "Large Road Bicycle", "Large Road Bus", "Large Road Decoration Grass", "Large Road Decoration Trees", "Large Road Elevated Bike", "Large Road Elevated Bus", "Large Road Elevated", "Large Road Tunnel Bus", "Large Road Tunnel", "Large Road" };
+        private string[] m_medium = new string[] { "Medium Road Bicycle", "Medium Road Bus", "Medium Road Decoration Grass", "Medium Road Decoration Trees", "Medium Road Elevated Bike", "Medium Road Elevated Bus", "Medium Road Elevated Tram", "Medium Road Elevated", "Medium Road Tram", "Medium Road Tunnel Bus", "Medium Road Tunnel Tram", "Medium Road Tunnel", "Medium Road" };
+        private string[] m_oneway = new string[] { "Oneway Road Decoration Grass", "Oneway Road Decoration Trees", "Oneway Road Elevated Tram", "Oneway Road Elevated", "Oneway Road Tram", "Oneway Road Tunnel Tram", "Oneway Road Tunnel", "Oneway Road", "Oneway Tram Track" };
+        private string[] m_deletes = new string[] { "Label Lines", "Roads", "Railroads", "Highways", "PowerLines", "Water Pipes", "Heat Pipes", "Airplanes", "Shipping", "Label Options", "Ground", "Bridge", "Slope", "Tunnel", "Label Properties", "Buildings", "Trees", "Props" };
+        private string[] m_services = new string[] { "Toggle", "HealthCare", "PoliceDepartment", "FireDepartment", "PublicTransport", "Education", "Electricity", "Water", "Garbage", "Beautification", "Monument" };
 
         UserSettings us = new UserSettings();
 
@@ -117,13 +172,11 @@ namespace AnotherRoadUpdate
 
         #region "Public Procedures"
 
+        #region "Minor"
+
         protected override void Awake()
         {
             WriteLog("ARUT awake!", true);
-            if (m_oldLog == false)
-            {
-                m_oldLog = true;
-            }
             m_active = false;
             base.Awake();
         }
@@ -136,16 +189,15 @@ namespace AnotherRoadUpdate
 
         protected override void OnDisable()
         {
-            WriteLog("ARUT sleep!");
             if (plMain != null)
                 plMain.isVisible = false;
-            SetSettings();
             base.OnDisable();
         }
 
         protected override void OnDestroy()
         {
             SetSettings();
+            WriteLog("ARUT sleep!");
             base.OnDestroy();
         }
 
@@ -168,22 +220,34 @@ namespace AnotherRoadUpdate
             {
                 if (e.button == 0)
                 {
-                    //handle Updates
-                    ApplyUpdates();
-                    //Handle Deletes
-                    ApplyBulldoze();
-                    //Handle Services on/off
-                    ApplyServices();
+                    if (options[(int)ops.Updates].isChecked)
+                    {
+                        WriteLog("Trying ApplyUpdates");
+                        //handle Updates
+                        ApplyUpdates();
+                        WriteLog("Tried ApplyUpdates");
+                    }
+                    else if (options[(int)ops.Deletes].isChecked)
+                    {
+                        WriteLog("Trying ApplyDeletes");
+                        //handle Updates
+                        ApplyDeletes();
+                        WriteLog("Tried ApplyDeletes");
+                    }
+                    else if (options[(int)ops.Services].isChecked)
+                    {
+                        WriteLog("Trying ApplyServices");
+                        //Handle Services on/off
+                        ApplyServices();
+                        WriteLog("Tried ApplyServices");
+                    }
                     m_active = false;
                 }
             }
         }
 
-        /// <summary>
-        /// The GUI initial state procedure
-        /// Will load all form (panel) objects
-        /// </summary>
-        /// <param name="mode"></param>
+        #endregion
+
         public void InitGui(LoadMode mode)
         {
             WriteLog("Entering InitGUI");
@@ -211,7 +275,7 @@ namespace AnotherRoadUpdate
                 mainButton.eventClick += Button_Clicked;
 
                 plMain = UIView.GetAView().FindUIComponent("TSBar").AddUIComponent<UIPanel>();
-
+                
                 if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                     plMain.backgroundSprite = "GenericPanel";
                 else
@@ -219,173 +283,34 @@ namespace AnotherRoadUpdate
 
                 plMain.isVisible = false;
                 plMain.name = "MarqueeBulldozerSettings";
-                int left = 10;
-                int right = 280;
-                int top = 1;
-                int loc = 0;
-
-                try
-                {
-                    //create our main view
-                    addUILabel(plMain, top, 1, "Select your update type, Delete, Update, Toggle", true);
-                    top += 25;
-                    //Updates
-                    cbUpdate = addCheckbox(plMain, top, left, "Update", "Select to display the Update options", true);
-                    cbUpdate.eventCheckChanged += cbUpdate_eventCheckChanged;
-                    //Bulldoze
-                    cbDelete = addCheckbox(plMain, top, left + 90, "Delete", "Select to display the BullDoze options", true);
-                    cbDelete.eventCheckChanged += cbUpdate_eventCheckChanged;
-                    //Services Toggle
-                    cbServices = addCheckbox(plMain, top, left + 180, "Services", "Select to display the Services on and off options", true);
-                    cbServices.eventCheckChanged += cbUpdate_eventCheckChanged;
-                    //divider
-                    top += 15;
-                    addUILabel(plMain, top, 5, "____________________________________________________________________", true);
-                    top += 20;
-
-                    m_top = top;
-                    m_left = left;
-
-                    //Updates labels
-                    lFrom = addUILabel(plMain, top, 1, "From ==>", false);
-                    lTo = addUILabel(plMain, top, right, "To ==>", false);
-                    top += 25;
-
-                    loc += 1;
-                    int cb = 0;
-                    int x = top;
-                    //load the update types but hide them
-                    foreach (string s in m_types)
-                    {
-                        string t = String.Format("If checked {0} sections will be displayed.", s);
-                        fromTypes.Add(addCheckbox(plMain, x, left, s, t, false));
-                        toTypes.Add(addCheckbox(plMain, x, right, s, t, false));
-                        fromTypes[cb].eventCheckChanged += cbBasic_eventCheckChanged;
-                        toTypes[cb].eventCheckChanged += cbToBasic_eventCheckChanged;
-                        x += 25;
-                        cb++;
-                    }
-
-                    loc += 1;
-                    cb = 0;
-                    //load the update roads but hide them
-                    foreach (string s in m_roads)
-                    {
-                        string t = String.Format("If checked {0} sections will be converted.", s);
-                        fromRoads.Add(addCheckbox(plMain, x, left * 2, s, t, false));
-                        t = String.Format("If checked sections will convert to {0}.", s);
-                        toRoads.Add(addCheckbox(plMain, x, right + 20, s, t, false));
-                        x += 25;
-                        fromRoads[cb].eventCheckChanged += FromRoad_eventCheckChanged;
-                        toRoads[cb].eventCheckChanged += ToRoad_eventCheckChanged;
-                        cb++;
-                    }
-
-                    //load the bulldoze options but hide them (these are just options)
-                    loc += 1;
-                    cb = 0;
-                    int temp = top;
-                    foreach (string s in m_deletes)
-                    {
-                        if (s == "Lines") {
-                            lLines = addUILabel(plMain, temp - 3, left, s, false);
-                            temp += 25;
-                        }
-                        else if (s == "Properties") {
-                            lProperties = addUILabel(plMain, temp - 3, left, s, false);
-                            temp += 25;
-                        }
-                        else if (s == "Options") {
-                            lOptions = addUILabel(plMain, temp - 3, left, s, false);
-                            temp += 25;
-                        }
-                        else
-                        {
-                            delTypes.Add(addCheckbox(plMain, temp, left, s, "", false));
-                            //WriteLog("Deltype: " + delTypes[cb] + " ::text: " + delTypes[cb].text + " :: cb: " + cb);
-                            delTypes[cb].eventCheckChanged += DeleteTypes_eventCheckChanged;
-                            temp += 25;
-                            cb += 1;
-                        }
-                    }
-
-                    //add a option for turning services on and off
-                    cbToggle = addCheckbox(plMain, top, left, "Toggle Services On/Off", "Services 'On' or 'Off'", false);
-
-                }
-                catch (Exception ex)
-                {
-                  WriteLog("Error in GUIInit: " + ex.Message + " loc = " + loc);
-                }
-
-                //add space for 6 options
-                top += (25 * 5);
-                m_topOfOptions = top;
-                //add space for 15 sub options
-                top += (25 * 15);
+                //Create the panels (Little like a tab view)
+                int height = CreatePanels(plMain);
 
                 //add events to update the settings
-                plMain.size = new Vector2(575, top + 25);
+                plMain.size = new Vector2(575, height);
 
-                //let the user know thaey can select areas to update
-                lSelectable = addUILabel(plMain, 1, 575 - 160, "Select enabled", false);
+                btHelp = plMain.AddUIComponent<UIButton>();
+                btHelp.size = new Vector2(25, 25);
+                btHelp.relativePosition = new Vector3(575 - 25, height - 25);
+                btHelp.text = "¿";
+                btHelp.tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
+                btHelp.isVisible = true;
+                btHelp.eventDoubleClick += btHelp_eventDoubleClick;
 
-                //load last used values
-                GetSettings(true);
                 plMain.relativePosition = new Vector2
                 (
                     RoadUpdateButton.relativePosition.x + RoadUpdateButton.width / 2.0f - plMain.width,
-                    RoadUpdateButton.relativePosition.y - plMain.height
+                    RoadUpdateButton.relativePosition.y - (plMain.height - 10)
                 );
-              WriteLog("Leaving InitGUI");
+
+                //We can load the users last session
+                GetSettings(true);
+
+                WriteLog("Leaving InitGUI", true);
+                //WriteLog("Leaving InitGUI");
             }
         }
-
-        private void DeleteTypes_eventCheckChanged(UIComponent component, bool value)
-        {
-          WriteLog("Entering DeleteTypes_eventCheckChanged");
-            UICheckBox c = (UICheckBox)component;
-            //store the update
-            if (c.text == delTypes[(int)p.Pipes].text) { us.Pipes = value; }
-            if (c.text == delTypes[(int)p.Ground].text) { us.Ground = value; }
-            if (c.text == delTypes[(int)p.Tunnel].text) { us.Tunnel = value; }
-            if (c.text == delTypes[(int)p.Bridge].text) { us.Bridge = value; }
-            if (c.text == delTypes[(int)p.Props].text) { us.Props = value; }
-            if (c.text == delTypes[(int)p.PowerLines].text) { us.PowerLines = value; }
-            if (c.text == delTypes[(int)p.Trees].text) { us.Trees = value; }
-            if (c.text == delTypes[(int)p.Buildings].text) { us.Buildings = value; }
-            if (c.text == delTypes[(int)p.Highways].text) { us.Highways = value; }
-            if (c.text == delTypes[(int)p.Railroads].text) { us.Railroads = value; }
-            if (c.text == delTypes[(int)p.Roads].text) { us.Roads = value; }
-            //set enabled
-            SetDeleteEnabled();
-          WriteLog("Leaving DeleteTypes_eventCheckChanged");
-        }
-
-        private void SetDeleteEnabled()
-        {
-          WriteLog("Entering SetDeleteEnabled selectable is: " + m_selectable);
-            try
-            {
-                m_selectable = ((delTypes[(int)p.Ground].isChecked || 
-                                    delTypes[(int)p.Bridge].isChecked || 
-                                    delTypes[(int)p.Tunnel].isChecked) && 
-                                (delTypes[(int)p.Pipes].isChecked || 
-                                    delTypes[(int)p.Props].isChecked || 
-                                    delTypes[(int)p.PowerLines].isChecked || 
-                                    delTypes[(int)p.Trees].isChecked || 
-                                    delTypes[(int)p.Railroads].isChecked || 
-                                    delTypes[(int)p.Roads].isChecked));
-
-                lSelectable.isVisible = m_selectable;
-            }
-            catch (Exception ex)
-            {
-              WriteLog("SetDeleteEnabled Exception: " + ex.Message);
-            }
-          WriteLog("Leaving SetDeleteEnabled selectable is: " + m_selectable);
-        }
-
+        
         protected override void OnToolLateUpdate()
         {
             Vector3 mousePosition = Input.mousePosition;
@@ -407,356 +332,234 @@ namespace AnotherRoadUpdate
             }
         }
 
-        private void SetSettings()
-        {
-            if (m_settings == true) { return; }
-            m_settings = true;
-
-            WriteLog("Entering SetSetting cbDelete.isChecked: " + cbDelete.isChecked);
-
-            us.ToOneway = toTypes[(int)Ups.Oneway].isChecked;
-            us.ToMedium = toTypes[(int)Ups.Medium].isChecked;
-            us.ToHighway = toTypes[(int)Ups.Highway].isChecked;
-            us.ToLarge = toTypes[(int)Ups.Large].isChecked;
-            us.ToBasic = toTypes[(int)Ups.Basic].isChecked;
-            us.Oneway = fromTypes[(int)Ups.Oneway].isChecked;
-            us.Medium = fromTypes[(int)Ups.Medium].isChecked;
-            us.Highway = fromTypes[(int)Ups.Highway].isChecked;
-            us.Large = fromTypes[(int)Ups.Large].isChecked;
-            us.Basic = fromTypes[(int)Ups.Basic].isChecked;
-
-            us.Roads = delTypes[(int)p.Roads].isChecked;
-            us.Railroads = delTypes[(int)p.Railroads].isChecked;
-            us.Highways = delTypes[(int)p.Highways].isChecked;
-            us.PowerLines = delTypes[(int)p.PowerLines].isChecked;
-            us.Pipes = delTypes[(int)p.Pipes].isChecked;
-            us.Props = delTypes[(int)p.Props].isChecked;
-            us.Buildings = delTypes[(int)p.Buildings].isChecked;
-            us.Trees = delTypes[(int)p.Trees].isChecked;
-            us.Ground = delTypes[(int)p.Ground].isChecked;
-            us.Bridge = delTypes[(int)p.Bridge].isChecked;
-            us.Tunnel = delTypes[(int)p.Tunnel].isChecked;
-
-            us.Services = cbServices.isChecked;
-            us.Delete = cbDelete.isChecked;
-            us.Update = cbUpdate.isChecked;
-            us.Toggle = cbToggle.isChecked;
-
-            us.Save();
-
-            WriteLog("Leaving SetSettings cbDelete.isChecked: " + cbDelete.isChecked);
-            m_settings = false;
-        }
-
-        private void GetSettings(bool toroads)
-        {
-            if (m_settings == true) { return; }
-            m_settings = true;
-
-            int loc = 0;
-            WriteLog("Entering GetSettings cbDelete.isChecked: " + cbDelete.isChecked);
-            try
-            {
-                toTypes[(int)Ups.Oneway].isChecked = us.ToOneway;
-                toTypes[(int)Ups.Medium].isChecked = us.ToMedium;
-                toTypes[(int)Ups.Highway].isChecked = us.ToHighway;
-                toTypes[(int)Ups.Large].isChecked = us.ToLarge;
-                toTypes[(int)Ups.Basic].isChecked = us.ToBasic;
-                fromTypes[(int)Ups.Oneway].isChecked = us.Oneway;
-                fromTypes[(int)Ups.Medium].isChecked = us.Medium;
-                fromTypes[(int)Ups.Highway].isChecked = us.Highway;
-                fromTypes[(int)Ups.Large].isChecked = us.Large;
-                fromTypes[(int)Ups.Basic].isChecked = us.Basic;
-                delTypes[(int)p.Roads].isChecked = us.Roads;
-                delTypes[(int)p.Railroads].isChecked = us.Railroads;
-                delTypes[(int)p.Highways].isChecked = us.Highways;
-                delTypes[(int)p.PowerLines].isChecked = us.PowerLines;
-                delTypes[(int)p.Pipes].isChecked = us.Pipes;
-                delTypes[(int)p.Buildings].isChecked = us.Buildings;
-                delTypes[(int)p.Trees].isChecked = us.Trees;
-                delTypes[(int)p.Props].isChecked = us.Props;
-                delTypes[(int)p.Bridge].isChecked = us.Bridge;
-                delTypes[(int)p.Ground].isChecked = us.Ground;
-                delTypes[(int)p.Tunnel].isChecked = us.Tunnel;
-                cbServices.isChecked = us.Services;
-                cbDelete.isChecked = us.Delete;
-                loc += 1;
-                cbUpdate.isChecked = us.Update;
-                cbToggle.isChecked = us.Toggle;
-            }
-            catch (Exception ex)
-            {
-                WriteLog("GetSettings loc: " + loc + " deltypes.Count: " + delTypes.Count + " Exception: " + ex.Message);
-            }
-            WriteLog("Leaving GetSettings cbDelete.isChecked: " + cbDelete.isChecked);
-            m_settings = false;
-        }
-
-        #endregion
-
-        #region "Event Handlers"
-
-        void Button_Clicked(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            if (plMain.isVisible == true)
-            {
-                this.enabled = false;
-                plMain.isVisible = false;
-            }
-            else
-            {
-                this.enabled = true;
-                plMain.isVisible = true;
-            }
-        }
-
-        private void cbUpdate_eventCheckChanged(UIComponent component, bool value)
-        {
-            if (m_Updates == true) { return; }
-            m_Updates = true;
-
-            int loc = 0;
-            WriteLog("Entering: cbUpdate_eventCheckChanged");
-            try
-            {
-                //Hide them all
-                foreach (UICheckBox c in fromTypes) { c.isVisible = false; c.label.isVisible = false; }
-                foreach (UICheckBox c in toTypes) { c.isVisible = false; c.label.isVisible = false; }
-                foreach (UICheckBox c in fromRoads) { c.isVisible = false; c.label.isVisible = false; }
-                foreach (UICheckBox c in toRoads) { c.isVisible = false; c.label.isVisible = false; }
-                foreach (UICheckBox c in delTypes) { c.isVisible = false; c.label.isVisible = false; }
-
-                cbToggle.isChecked = false;
-                WriteLog("cbUpdate_eventCheckChanged ShowDelete");
-                ShowDelete(false);
-                WriteLog("cbUpdate_eventCheckChanged ShowToggle");
-                ShowToggle(false);
-                WriteLog("cbUpdate_eventCheckChanged ShowUpdate");
-                ShowUpdate(false);
-
-                loc += 1;
-                UICheckBox cb = (UICheckBox)component;
-                if (cb.text == "Update" && cbUpdate.isChecked == true)
-                {
-                    cbDelete.isChecked = false;
-                    cbServices.isChecked = false;
-                    ShowUpdate(true);
-                }
-                else if (cb.text == "Delete" && cbDelete.isChecked == true)
-                {
-                    cbUpdate.isChecked = false;
-                    cbServices.isChecked = false;
-                    ShowDelete(true);
-                }
-                else if (cb.text == "Services" && cbServices.isChecked == true)
-                {
-                    cbDelete.isChecked = false;
-                    cbUpdate.isChecked = false;
-                    ShowToggle(true);
-                }
-                loc += 1;
-                SetSettings();
-            }
-            catch (Exception ex)
-            {
-                WriteLog("Exception in cbUpdate_eventCheckChanged loc: " + loc + " Message: " + ex.Message + "::" + ex.StackTrace);
-            }
-            m_Updates = false;
-            WriteLog("Leaving cbUpdate_eventCheckChanged");
-        }
-
-        private void cbBasic_eventCheckChanged(UIComponent component, bool value)
-        {
-            if (m_fromTypes == true) { return; }
-            m_fromTypes = true;
-
-            WriteLog("Entering cbBasic_eventCheckChanged");
-
-            UICheckBox cb = (UICheckBox)component;
-            UpdateDisplayedRoads(fromTypes, fromRoads, cb.text, value, 20);
-            SetSettings();
-            m_fromTypes = false;
-
-            WriteLog("Leaving cbBasic_eventCheckChanged");
-        }
-
-        private void cbToBasic_eventCheckChanged(UIComponent component, bool value)
-        {
-            if (m_toTypes == true) { return; }
-            m_toTypes = true;
-
-            WriteLog("Entering cbToBasic_eventCheckChanged");
-
-            UICheckBox cb = (UICheckBox)component;
-            UpdateDisplayedRoads(toTypes, toRoads, cb.text, value, 300);
-            SetSettings();
-            m_toTypes = false;
-
-            WriteLog("Leaving cbToBasic_eventCheckChanged");
-        }
-
-        private void ToRoad_eventCheckChanged(UIComponent component, bool value)
-        {
-            if (m_toRoads == true) { return; }
-            if (cbUpdate.isChecked == false) { return; }
-            m_toRoads = true;
-
-            WriteLog("Entering ToRoad_eventCheckedChanged");
-
-            UICheckBox cb = (UICheckBox)component;
-
-            UpdateSelected(toRoads, lTo, cb, cb.isChecked, "To ==> ", out toSelected);
-            SetSettings();
-            m_toRoads = false;
-
-            WriteLog("Leaving ToRoad_eventCheckedChanged");
-        }
-
-        private void FromRoad_eventCheckChanged(UIComponent component, bool value)
-        {
-            if (m_fromRoads == true) { return; }
-            if (cbUpdate.isChecked == false) { return; }
-            m_fromRoads = true;
-
-            WriteLog("Entering FromRoad_eventCheckedChanged");
-
-            UICheckBox cb = (UICheckBox)component;
-
-            UpdateSelected(fromRoads, lFrom, cb, cb.isChecked, "From ==> ", out fromSelected);
-            SetSettings();
-            m_fromRoads = false;
-
-            WriteLog("Leaving FromRoad_eventCheckedChanged");
-        }
-
         #endregion
 
         #region "Private procedures"
 
-        private void ShowToggle(bool show)
+        #region "GUI Layout"
+
+        private int CreatePanels(UIPanel panel)
         {
-            cbToggle.isVisible = show;
-            cbToggle.label.isVisible = show;
+            int plx = 1;
+            int ply = 1;
+
+            ply = GenerateOptions(panel, ply, plx);
+
+            WriteLog("ply: " + ply + " plx: " + plx);
+
+            GenerateplDelete(panel, ply, plx);
+            GenerateplServices(panel, ply, plx);
+            ply = GenerateplTypes(panel, ply, plx);
+
+            GenerateRoadPanels(panel, ref plBasic, ref plToBasic, fromBasic, toBasic, m_basic, "Basic", ply, plx);
+            GenerateRoadPanels(panel, ref plHighway, ref plToHighway, fromHighway, toHighway, m_highway, "Highway", ply, plx);
+            GenerateRoadPanels(panel, ref plLarge, ref plToLarge, fromLarge, toLarge, m_large, "Large", ply, plx);
+            GenerateRoadPanels(panel, ref plMedium, ref plToMedium, fromMedium, toMedium, m_medium, "Medium", ply, plx);
+            GenerateRoadPanels(panel, ref plOneway, ref plToOneway, fromOneway, toOneway, m_oneway, "Oneway", ply, plx);
+            
+            //three rows in options, five in Road Types, 15 in Large roads
+            return 25 * (3 + 6 + 16);
         }
 
-        private void ShowDelete(bool show)
+        private int GenerateOptions(UIPanel panel, int ply, int plx)
         {
-            try
+            //Show the road type option
+            plOptions = panel.AddUIComponent<UIPanel>();
+            plOptions.relativePosition = new Vector3(1, 1);
+            plOptions.isVisible = true;
+            plOptions.tooltip = "Select the type of updates to perform.";
+
+            int cb = 0;
+            foreach (string s in m_options)
             {
-                lLines.isVisible = show;
-                lProperties.isVisible = show;
-                lOptions.isVisible = show;
-                foreach (UICheckBox c in delTypes)
+                if (s.StartsWith("Label "))
                 {
-                    c.isVisible = show;
-                    c.label.isVisible = show;
+                    if (s == "Label Selectable")
+                    {
+                        lSelectable = addUILabel(plOptions, ply, plx, "Selection is now available", false);
+                    }
+                    else
+                        addUILabel(plOptions, ply, plx, "Another Road Update Tool.", true);
+                    //This was the title, indent the rest
+                }
+                else
+                {
+                    string t = String.Format("Select to display the {0} options", s);
+                    options.Add(addCheckbox(plOptions, ply + 25, plx, s, t, true));
+                    //we will add ninty to each option or label
+                    plx += 120;
+                    options[cb].eventCheckChanged += Options_eventCheckChanged;
+                    cb += 1;
                 }
             }
-            catch (Exception ex)
-            {
-              WriteLog("Exception in ShowDelete: " + ex.Message);
-            }
+            //return the top of the Road Types, Services, and Deletes panels
+            return 50;
         }
 
-        private void ShowUpdate(bool show)
+        private int GenerateplTypes(UIPanel panel, int ply, int plx)
         {
-            lFrom.isVisible = show;
-            lTo.isVisible = show;
+            //Show the road type option
+            plRoads = panel.AddUIComponent<UIPanel>();
+            plRoads.relativePosition = new Vector3(1, 50);
+            plRoads.isVisible = false;
+            plRoads.tooltip = "Select the Road types to convert from and to";
 
-            //foreach (UICheckBox cb in fromTypes)
-            //{
-            //    cb.isVisible = show;
-            //    cb.label.isVisible = show;
-            //    if (cb.isChecked == true && cbUpdate.isChecked)
-            //    {
-            //        UpdateDisplayedRoads(fromTypes, fromRoads, cb.text, true, 20);
-            //    }
-            //}
-            //foreach (UICheckBox cb in toTypes)
-            //{
-            //    cb.isVisible = show;
-            //    cb.label.isVisible = show;
-            //    if (cb.isChecked == true && cbUpdate.isChecked)
-            //    {
-            //        UpdateDisplayedRoads(toTypes, toRoads, cb.text, true, 300);
-            //    }
-            //}
-        }
-
-        private void UpdateDisplayedRoads(List<UICheckBox> types, List<UICheckBox> roads, string text, bool show, int xPos)
-        {
-            WriteLog("Entering UpdateDisplayedRoads " + xPos);
-
-            foreach (UICheckBox cb in types)
+            int x1 = 10;
+            int x2 = 280;
+            int y = 1;
+            int cb = 0;
+            //load the update types but hide them
+            foreach (string s in m_roads)
             {
-                if (cb.text != text)
+                if (s.StartsWith("Label "))
                 {
-                    cb.isChecked = false;
+                    try
+                    {
+                        addUILabel(plRoads, y, x1 - 5, "From ==> ", true);
+                        addUILabel(plRoads, y, x2 - 5, "To ==> ", true);
+                        y += 20;
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteLog("error in GenerateplTypes: " + ex.Message + " stack:: " + ex.StackTrace);
+                    }
                 }
-            }
-
-            if (text.Contains("Basic")) { DisplayCheckBoxes(roads, xPos, "Basic", show); }
-            else if (text.Contains("Highway")) { DisplayCheckBoxes(roads, xPos, "Highway", show); }
-            else if (text.Contains("Large")) { DisplayCheckBoxes(roads, xPos, "Large", show); }
-            else if (text.Contains("Medium")) { DisplayCheckBoxes(roads, xPos, "Medium", show); }
-            else if (text.Contains("Oneway")) { DisplayCheckBoxes(roads, xPos, "Oneway", show); }
-            else
-                WriteLog("Could not define this object type.");
-
-            WriteLog("Leaving UpdateDisplayedRoads");
-        }
-
-        private void DisplayCheckBoxes(List<UICheckBox> roads, int xPos, string test, bool show)
-        {
-            WriteLog("Entering DisplayCheckBoxes");
-
-            int y = m_topOfOptions;
-            int x = xPos;
-
-            foreach (UICheckBox cb in roads)
-            {
-                cb.isVisible = false;
-                cb.label.isVisible = false;
-                if (cb.text.Contains(test))
+                else
                 {
-                    cb.relativePosition = new Vector3(x, y);
-                    cb.label.relativePosition = new Vector3(x + 25, y + 3);
-                    cb.isVisible = show;
-                    cb.label.isVisible = show;
+                    string t = String.Format("If checked {0} sections will be displayed.", s);
+                    fromTypes.Add(addCheckbox(plRoads, y, x1, s, t, true));
+                    toTypes.Add(addCheckbox(plRoads, y, x2, s, t, true));
+                    fromTypes[cb].eventCheckChanged += FromTypes_eventCheckChanged;
+                    toTypes[cb].eventCheckChanged += ToTypes_eventCheckChanged;
                     y += 25;
+                    cb++;
                 }
             }
+            //add an option to ignor curved segments
+            cbCurved = addCheckbox(plRoads, y + 5, 1, "Ignore Curves", "Allows you to delete all straight segments but ignore the curved ones.", true);
+            cbCurved.eventCheckChanged += cbCurved_eventCheckChanged;
 
-            WriteLog("Leaving UpdateDisplayedRoads");
+            plRoads.size = new Vector2(panel.width, 250);
+            //return the top of the roads panals
+            return ply + y;
         }
 
-        private void UpdateSelected(List<UICheckBox> roads, UILabel lb, UICheckBox incb, bool check, string tofrom, out string selected)
+        private void GenerateplDelete(UIPanel panel, int ply, int plx)
         {
-            WriteLog("Entering UpdateSelected: " + tofrom);
+            //Show the road type option
+            plDelete = panel.AddUIComponent<UIPanel>();
+            plDelete.relativePosition = new Vector3(1, 50);
+            plDelete.isVisible = false;
+            plDelete.tooltip = "Select the type of items to delete.";
 
-            selected = "";
-            if (plMain.isVisible == false) return;
-            lb.text = tofrom;
+            int cb = 0;
+            int x = 15;
+            int y = 6;
 
-            foreach (UICheckBox cb in roads)
+            //load the bulldoze options but hide them (these are just options)
+            addUILabel(plDelete, y - 5, 5, "Select your delete options.", true);
+            y += 15;
+
+            foreach (string s in m_deletes)
             {
-                if (cb.text != incb.text && cb.isChecked == true)
+                if (s == "Label Lines")
                 {
-                    cb.isChecked = false;
+                    lLines = addUILabel(plDelete, y, 10, "Lines", true);
+                    y += 20;
+                }
+                else if (s == "Label Properties")
+                {
+                    lProperties = addUILabel(plDelete, y, 10, "Properties", true);
+                    y += 20;
+                }
+                else if (s == "Label Options")
+                {
+                    lOptions = addUILabel(plDelete, y, 10, "Options", true);
+                    y += 20;
+                }
+                else
+                {
+                    string t = "These items will be deleted.";
+                    if (s == "Bridges" || s == "Ground" || s == "Tunnels") { t = "These types will be deleted.";  }
+                    deletes.Add(addCheckbox(plDelete, y, x, s, t, true));
+                    deletes[cb].eventCheckChanged += DeleteTypes_eventCheckChanged;
+                    y += 25;
+                    cb += 1;
                 }
             }
-            if (incb.isChecked)
-            {
-                selected = incb.text;
-                lb.text = tofrom + selected.Replace("Decoration ", "Dec.. ");
-            }
-            //Set to allow area selections
-            m_selectable = (fromSelected != "" && toSelected != "");
 
-            WriteLog("Leaving UpdateSelected: " + tofrom);
+            plDelete.size = new Vector2(panel.width, y + 25);
         }
 
-        #region "Update Add Controls"
+        private void GenerateplServices(UIPanel panel, int ply, int plx)
+        {
+            //Show the road type option
+            plServices = panel.AddUIComponent<UIPanel>();
+            plServices.relativePosition = new Vector3(1, 50);
+            plServices.isVisible = false;
+            plServices.tooltip = "Select the type of services to toggle on and off.";
+
+            int cb = 0;
+            int y = 6;
+
+            addUILabel(plServices, 1, 5, "Select your service options.", true);
+            y += 20;
+
+            foreach (string s in m_services)
+            {
+                string t = "These items will be toggled On or Off.";
+                if (s == "Toggle")
+                {
+                    t = "Check to turn on services, unchecked to turn them off.";
+                    services.Add(addCheckbox(plServices, y, 10, s, t, true));
+                    services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                }
+                else
+                {
+                    services.Add(addCheckbox(plServices, y, 15, s, t, true));
+                    services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                }
+                y += 25;
+                cb += 1;
+            }
+            plServices.size = new Vector2(panel.width, y + 25);
+        }
+
+        private void GenerateRoadPanels(UIPanel panel, ref UIPanel pFrom, ref UIPanel pTo, List<UICheckBox> lFrom, List<UICheckBox> lTo, string[] road, string name, int ply, int plx)
+        {
+            WriteLog("Entering GenerateRoadPanels");
+            //Show the road from option
+            pFrom = panel.AddUIComponent<UIPanel>();
+            pFrom.relativePosition = new Vector3(1, 230);
+            pFrom.size = new Vector2(25 * 15, panel.width / 2);
+            pFrom.isVisible = false;
+            pFrom.tooltip = "Select the type of road to convert.";
+            //Show the road to option
+            pTo = panel.AddUIComponent<UIPanel>();
+            pTo.relativePosition = new Vector3(280, 230);
+            pTo.size = new Vector2(25 * 15, panel.width / 2);
+            pTo.isVisible = false;
+            pTo.tooltip = "Select the type of road to convert to.";
+
+            int cb = 0;
+            int y = 3;
+            //load the update roads but hide them
+            foreach (string s in road)
+            {
+                string t = String.Format("If checked {0} sections will be converted.", s);
+                lFrom.Add(addCheckbox(pFrom, y, 11, s, t, true));
+                t = String.Format("If checked sections will convert to {0}.", s);
+                lTo.Add(addCheckbox(pTo, y, 11, s, t, true));
+                y += 25;
+                lFrom[cb].eventCheckChanged += FromRoad_eventCheckChanged;
+                lTo[cb].eventCheckChanged += ToRoad_eventCheckChanged;
+                cb++;
+            }
+            WriteLog("Leaving GenerateRoadPanels");
+        }
+
+
+        #region "Adding Controls"
 
         private UILabel addUILabel(UIPanel panel, int yPos, int xPos, string text, bool hidden)
         {
@@ -771,12 +574,12 @@ namespace AnotherRoadUpdate
 
         private UICheckBox addCheckbox(UIPanel panel, int yPos, int xPos, string text, string tooltip, bool hidden)
         {
-            var cb = plMain.AddUIComponent<UICheckBox>();
+            var cb = panel.AddUIComponent<UICheckBox>();
             cb.relativePosition = new Vector3(xPos, yPos);
             cb.height = 0;
             cb.width = 80;
-  
-            var label = plMain.AddUIComponent<UILabel>();
+
+            var label = panel.AddUIComponent<UILabel>();
             label.relativePosition = new Vector3(xPos + 25, yPos + 3);
             cb.label = label;
             cb.text = text;
@@ -806,7 +609,629 @@ namespace AnotherRoadUpdate
 
         #endregion
 
-        #region "Update Area Selection"
+        #endregion
+
+        #region "Settings"
+
+        private void SetSettings()
+        {
+            if (m_settings == true) { return; }
+            m_settings = true;
+
+            WriteLog("Entering SetSetting deletes[1].isChecked: " + deletes[1].isChecked);
+
+            us.ToOneway = toTypes[(int)Ups.Oneway].isChecked;
+            us.ToMedium = toTypes[(int)Ups.Medium].isChecked;
+            us.ToHighway = toTypes[(int)Ups.Highway].isChecked;
+            us.ToLarge = toTypes[(int)Ups.Large].isChecked;
+            us.ToBasic = toTypes[(int)Ups.Basic].isChecked;
+            us.Oneway = fromTypes[(int)Ups.Oneway].isChecked;
+            us.Medium = fromTypes[(int)Ups.Medium].isChecked;
+            us.Highway = fromTypes[(int)Ups.Highway].isChecked;
+            us.Large = fromTypes[(int)Ups.Large].isChecked;
+            us.Basic = fromTypes[(int)Ups.Basic].isChecked;
+
+            us.Roads = deletes[(int)p.Roads].isChecked;
+            us.Railroads = deletes[(int)p.Railroads].isChecked;
+            us.Highways = deletes[(int)p.Highways].isChecked;
+            us.PowerLines = deletes[(int)p.PowerLines].isChecked;
+            us.WaterPipes = deletes[(int)p.WaterPipes].isChecked;
+            us.HeatPipes = deletes[(int)p.HeatPipes].isChecked;
+            us.Airplanes = deletes[(int)p.Airplanes].isChecked;
+            us.Shipping = deletes[(int)p.Shipping].isChecked;
+
+            us.Ground = deletes[(int)p.Ground].isChecked;
+            us.Bridge = deletes[(int)p.Bridge].isChecked;
+            us.Slope = deletes[(int)p.Slope].isChecked;
+            us.Tunnel = deletes[(int)p.Tunnel].isChecked;
+
+            us.Buildings = deletes[(int)p.Buildings].isChecked;
+            us.Trees = deletes[(int)p.Trees].isChecked;
+            us.Props = deletes[(int)p.Props].isChecked;
+
+            us.Update = options[(int)ops.Updates].isChecked;
+            us.Delete = options[(int)ops.Deletes].isChecked;
+            us.Services = options[(int)ops.Services].isChecked;
+            us.Toggle = deletes[(int)dl.Toggle].isChecked;
+
+            us.Save();
+
+            WriteLog("Leaving SetSettings deletes[1].isChecked: " + deletes[1].isChecked);
+            m_settings = false;
+        }
+
+        private void GetSettings(bool toBasic)
+        {
+            if (m_settings == true) { return; }
+            m_settings = true;
+
+            int loc = 0;
+            WriteLog("Entering GetSettings deletes[1].isChecked: " + deletes[1].isChecked);
+            try
+            {
+                toTypes[(int)Ups.Oneway].isChecked = us.ToOneway;
+                toTypes[(int)Ups.Medium].isChecked = us.ToMedium;
+                toTypes[(int)Ups.Highway].isChecked = us.ToHighway;
+                toTypes[(int)Ups.Large].isChecked = us.ToLarge;
+                toTypes[(int)Ups.Basic].isChecked = us.ToBasic;
+                fromTypes[(int)Ups.Oneway].isChecked = us.Oneway;
+                fromTypes[(int)Ups.Medium].isChecked = us.Medium;
+                fromTypes[(int)Ups.Highway].isChecked = us.Highway;
+                fromTypes[(int)Ups.Large].isChecked = us.Large;
+                fromTypes[(int)Ups.Basic].isChecked = us.Basic;
+
+                deletes[(int)p.Roads].isChecked = us.Roads;
+                deletes[(int)p.Railroads].isChecked = us.Railroads;
+                deletes[(int)p.Highways].isChecked = us.Highways;
+                deletes[(int)p.PowerLines].isChecked = us.PowerLines;
+                deletes[(int)p.WaterPipes].isChecked = us.WaterPipes;
+                deletes[(int)p.HeatPipes].isChecked = us.HeatPipes;
+                deletes[(int)p.Airplanes].isChecked = us.Airplanes;
+                deletes[(int)p.Shipping].isChecked = us.Shipping;
+
+                deletes[(int)p.Ground].isChecked = us.Ground;
+                deletes[(int)p.Bridge].isChecked = us.Bridge;
+                deletes[(int)p.Slope].isChecked = us.Slope;
+                deletes[(int)p.Tunnel].isChecked = us.Tunnel;
+
+                deletes[(int)p.Buildings].isChecked = us.Buildings;
+                deletes[(int)p.Trees].isChecked = us.Trees;
+                deletes[(int)p.Props].isChecked = us.Props;
+
+                loc += 1;
+                options[(int)ops.Services].isChecked = us.Services;
+                loc += 1;
+                options[(int)ops.Deletes].isChecked = us.Delete;
+                loc += 1;
+                options[(int)ops.Updates].isChecked = us.Update;
+                loc += 1;
+                deletes[(int)dl.Toggle].isChecked = us.Toggle;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("GetSettings loc: " + loc + " deltypes.Count: " + deletes.Count + " Exception: " + ex.Message);
+            }
+            WriteLog("Leaving GetSettings deletes[1].isChecked: " + deletes[1].isChecked);
+            m_settings = false;
+        }
+
+        #endregion
+
+        #region "Event Process helpers"
+
+        private void SetServicesEnabled()
+        {
+            WriteLog("Entering: SetServicesEnabled m_selectable: " + m_selectable);
+
+            try
+            {
+                m_selectable = false;
+                lSelectable.isVisible = m_selectable;
+
+                //do we have at least one service type selected
+                if (services.Any(o => o.isChecked == true)) { }
+                else
+                    return;
+
+                //ok all checks complete
+                m_selectable = true;
+                lSelectable.isVisible = m_selectable;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("SetServicesEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace);
+            }
+
+            WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
+        }
+
+        private void SetUpdateEnabled()
+        {
+            WriteLog("Entering: SetUpdateEnabled m_selectable: " + m_selectable);
+
+            try
+            {
+                m_selectable = false;
+                lSelectable.isVisible = m_selectable;
+                //is Updated enabled?
+                if (options[(int)ops.Updates].isChecked == false)
+                    return;
+
+                //do we have a from road type
+                if (fromTypes.Any(o => o.isChecked == true)) { }
+                else
+                    return;
+
+                //do we have a to road type
+                if (toTypes.Any(o => o.isChecked == true)) { }
+                else
+                    return;
+
+                //do we have a from Road
+                if (fromOneway.Any(o => o.isChecked == true)) { }
+                else if (fromMedium.Any(o => o.isChecked == true)) { }
+                else if (fromHighway.Any(o => o.isChecked == true)) { }
+                else if (fromLarge.Any(o => o.isChecked == true)) { }
+                else if (fromBasic.Any(o => o.isChecked == true)) { }
+                else
+                    return;
+
+                //do we have a to Road
+                if (toOneway.Any(o => o.isChecked == true)) { }
+                else if (toMedium.Any(o => o.isChecked == true)) { }
+                else if (toHighway.Any(o => o.isChecked == true)) { }
+                else if (toLarge.Any(o => o.isChecked == true)) { }
+                else if (toBasic.Any(o => o.isChecked == true)) { }
+                else
+                    return;
+
+                //ok all checks complete
+                m_selectable = true;
+                lSelectable.isVisible = m_selectable;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("SetUpdateEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace);
+            }
+
+            WriteLog("Leaving: SetUpdateEnabled m_selectable: " + m_selectable);
+        }
+
+        private void SetDeleteEnabled()
+        {
+          WriteLog("Entering SetDeleteEnabled selectable is: " + m_selectable);
+            try
+            {
+                WriteLog("(Ground || Bridge || Slope || Tunnel): " + (deletes[(int)p.Ground].isChecked || deletes[(int)p.Bridge].isChecked || deletes[(int)p.Slope].isChecked || deletes[(int)p.Tunnel].isChecked));
+
+                WriteLog("(The Lines): " + (deletes[(int)p.Roads].isChecked ||
+                                            deletes[(int)p.Railroads].isChecked ||
+                                            deletes[(int)p.PowerLines].isChecked ||
+                                            deletes[(int)p.WaterPipes].isChecked ||
+                                            deletes[(int)p.HeatPipes].isChecked ||
+                                            deletes[(int)p.Airplanes].isChecked ||
+                                            deletes[(int)p.Shipping].isChecked));
+
+                WriteLog("(The Properties): " + (deletes[(int)p.Buildings].isChecked ||
+                                            deletes[(int)p.Trees].isChecked ||
+                                            deletes[(int)p.Props].isChecked));
+
+                m_selectable = (((options[(int)ops.Deletes].isChecked) &&
+                                    (deletes[(int)p.Ground].isChecked ||
+                                        deletes[(int)p.Bridge].isChecked ||
+                                        deletes[(int)p.Slope].isChecked ||
+                                        deletes[(int)p.Tunnel].isChecked) &&
+                                    (deletes[(int)p.Roads].isChecked ||
+                                        deletes[(int)p.Railroads].isChecked ||
+                                        deletes[(int)p.PowerLines].isChecked ||
+                                        deletes[(int)p.WaterPipes].isChecked ||
+                                        deletes[(int)p.HeatPipes].isChecked ||
+                                        deletes[(int)p.Airplanes].isChecked ||
+                                        deletes[(int)p.Shipping].isChecked)) ||
+                                    (deletes[(int)p.Buildings].isChecked ||
+                                        deletes[(int)p.Trees].isChecked ||
+                                        deletes[(int)p.Props].isChecked));
+
+                lSelectable.isVisible = m_selectable;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("SetDeleteEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace);
+            }
+          WriteLog("Leaving SetDeleteEnabled selectable is: " + m_selectable);
+        }
+
+        private void ShowRoads()
+        {
+            //From
+            //Make sure all road panels are hidden
+            plBasic.isVisible = false;
+            plHighway.isVisible = false;
+            plLarge.isVisible = false;
+            plMedium.isVisible = false;
+            plOneway.isVisible = false;
+            //now check for any that should be displayed
+            foreach (UICheckBox c in fromTypes)
+            {
+                if (c.isChecked == true && options[(int)ops.Updates].isChecked)
+                {
+                    if (c.text == "Basic") { plBasic.isVisible = true; }
+                    if (c.text == "Highway") { plHighway.isVisible = true; }
+                    if (c.text == "Large") { plLarge.isVisible = true; }
+                    if (c.text == "Medium") { plMedium.isVisible = true; }
+                    if (c.text == "Oneway") { plOneway.isVisible = true; }
+                }
+            }
+            //To
+            //Make sure all road panels are hidden
+            plToBasic.isVisible = false;
+            plToHighway.isVisible = false;
+            plToLarge.isVisible = false;
+            plToMedium.isVisible = false;
+            plToOneway.isVisible = false;
+            //now check for any that should be displayed
+            foreach (UICheckBox c in toTypes)
+            {
+                if (c.isChecked == true && options[(int)ops.Updates].isChecked)
+                {
+                    if (c.text == "Basic") { plToBasic.isVisible = true; }
+                    if (c.text == "Highway") { plToHighway.isVisible = true; }
+                    if (c.text == "Large") { plToLarge.isVisible = true; }
+                    if (c.text == "Medium") { plToMedium.isVisible = true; }
+                    if (c.text == "Oneway") { plToOneway.isVisible = true; }
+                }
+            }
+            //Show if available
+            SetUpdateEnabled();
+        }
+
+        private void UpdatePanels(bool show)
+        {
+            plRoads.isVisible = show;
+            plDelete.isVisible = show;
+            plServices.isVisible = show;
+            plBasic.isVisible = show;
+            plHighway.isVisible = show;
+            plLarge.isVisible = show;
+            plMedium.isVisible = show;
+            plOneway.isVisible = show;
+            plToBasic.isVisible = show;
+            plToHighway.isVisible = show;
+            plToLarge.isVisible = show;
+            plToMedium.isVisible = show;
+            plToOneway.isVisible = show;
+            m_selectable = false;
+            lSelectable.isVisible = m_selectable;
+        }
+
+        private void UpdateDisplayedRoads(List<UICheckBox> types, List<UICheckBox> roads, string text, bool show, int xPos)
+        {
+            WriteLog("Entering UpdateDisplayedRoads " + xPos);
+
+            foreach (UICheckBox cb in types)
+            {
+                if (cb.text != text)
+                {
+                    cb.isChecked = false;
+                }
+            }
+
+            if (text.Contains("Basic")) { DisplayCheckBoxes(roads, xPos, "Basic", show); }
+            else if (text.Contains("Highway")) { DisplayCheckBoxes(roads, xPos, "Highway", show); }
+            else if (text.Contains("Large")) { DisplayCheckBoxes(roads, xPos, "Large", show); }
+            else if (text.Contains("Medium")) { DisplayCheckBoxes(roads, xPos, "Medium", show); }
+            else if (text.Contains("Oneway")) { DisplayCheckBoxes(roads, xPos, "Oneway", show); }
+            else
+                WriteLog("Could not define this object type.");
+
+            WriteLog("Leaving UpdateDisplayedRoads");
+        }
+
+        private void DisplayCheckBoxes(List<UICheckBox> roads, int xPos, string test, bool show)
+        {
+            WriteLog("Entering DisplayCheckBoxes");
+
+            int y = 0;
+            int x = xPos;
+
+            foreach (UICheckBox cb in roads)
+            {
+                cb.isVisible = false;
+                cb.label.isVisible = false;
+                if (cb.text.Contains(test))
+                {
+                    cb.relativePosition = new Vector3(x, y);
+                    cb.label.relativePosition = new Vector3(x + 25, y + 3);
+                    cb.isVisible = show;
+                    cb.label.isVisible = show;
+                    y += 25;
+                }
+            }
+
+            WriteLog("Leaving UpdateDisplayedRoads");
+        }
+
+        #endregion
+
+        #region "Event Handlers"
+        
+        private void cbCurved_eventCheckChanged(UIComponent component, bool value)
+        {
+            WriteLog("Entering cbCurved_eventCheckChanged Checkbox: " + value);
+
+            //not sure we need this it is a boolean
+
+            WriteLog("Leaving cbCurved_eventCheckChanged Checkbox: " + value);
+        }
+
+        private void ServiceTypes_eventCheckChanged(UIComponent component, bool value)
+        {
+            WriteLog("Entering ServiceTypes_eventCheckChanged");
+
+            SetServicesEnabled();
+
+            WriteLog("Leaving ServiceTypes_eventCheckChanged");
+        }
+
+        private void btHelp_eventDoubleClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            WriteLog("Entering btHelp_eventDoubleClick");
+
+            try
+            {
+                Assembly assembly = Assembly.GetExecutingAssembly();
+                Stream stream = assembly.GetManifestResourceStream("AnotherRoadUpdate.ARUT.pdf");
+                if (stream == null)
+                {
+                    WriteLog("Error loading embeded resource AnotherRoadUpdate.ARUT.pdf");
+                    return;
+                }
+                BinaryReader br = new BinaryReader(stream);
+                FileStream fs = new FileStream("ARUT.pdf", FileMode.Create);
+                BinaryWriter bw = new BinaryWriter(fs);
+                byte[] ba = new byte[stream.Length];
+                stream.Read(ba, 0, ba.Length);
+                bw.Write(ba);
+                br.Close();
+                bw.Close();
+                Process p = new Process();
+                p.StartInfo.FileName = "ARUT.pdf";
+                p.Start();
+
+            }
+            catch (Exception ex)
+            {
+                WriteLog("btHelp_eventDoubleClick Exception: " + ex.Message + " Stack: " + ex.StackTrace);
+            }
+
+            WriteLog("Leaving btHelp_eventDoubleClick");
+        }
+
+        private void DeleteTypes_eventCheckChanged(UIComponent component, bool value)
+        {
+            WriteLog("Entering DeleteTypes_eventCheckChanged");
+            UICheckBox c = (UICheckBox)component;
+            //store the update
+            if (c.text == deletes[(int)p.Roads].text) { us.Roads = value; }
+            if (c.text == deletes[(int)p.Railroads].text) { us.Railroads = value; }
+            if (c.text == deletes[(int)p.Highways].text) { us.Highways = value; }
+            if (c.text == deletes[(int)p.PowerLines].text) { us.PowerLines = value; }
+            if (c.text == deletes[(int)p.WaterPipes].text) { us.WaterPipes = value; }
+            if (c.text == deletes[(int)p.HeatPipes].text) { us.HeatPipes = value; }
+            if (c.text == deletes[(int)p.Airplanes].text) { us.Airplanes = value; }
+            if (c.text == deletes[(int)p.Shipping].text) { us.Shipping = value; }
+
+            if (c.text == deletes[(int)p.Buildings].text) { us.Buildings = value; }
+            if (c.text == deletes[(int)p.Props].text) { us.Props = value; }
+            if (c.text == deletes[(int)p.Trees].text) { us.Trees = value; }
+
+            if (c.text == deletes[(int)p.Ground].text) { us.Ground = value; }
+            if (c.text == deletes[(int)p.Bridge].text) { us.Bridge = value; }
+            if (c.text == deletes[(int)p.Tunnel].text) { us.Tunnel = value; }
+
+            //set enabled
+            SetDeleteEnabled();
+            WriteLog("Leaving DeleteTypes_eventCheckChange Roads: " + us.Roads + " Ground: " + us.Ground);
+        }
+
+        private void Options_eventCheckChanged(UIComponent component, bool value)
+        {
+            if (m_updates == true) { return; }
+            m_updates = true;
+
+            UICheckBox c = (UICheckBox)component;
+            WriteLog("Entering: Options_eventCheckChanged: c.text: " + c.text + " Checked: " + c.isChecked);
+
+            //Hide tham all
+            UpdatePanels(false);
+
+            //did we unclick tham all?
+            if (c.isChecked == false) { }
+            else
+            {
+                if (c.text == "Updates")
+                {
+                    options[(int)ops.Deletes].isChecked = false;
+                    options[(int)ops.Services].isChecked = false;
+                    plRoads.isVisible = true;
+                    ShowRoads();
+                }
+                else if (c.text == "Deletes")
+                {
+                    options[(int)ops.Updates].isChecked = false;
+                    options[(int)ops.Services].isChecked = false;
+                    plDelete.isVisible = true;
+                    SetDeleteEnabled();
+                }
+                else
+                {
+                    options[(int)ops.Updates].isChecked = false;
+                    options[(int)ops.Deletes].isChecked = false;
+                    plServices.isVisible = true;
+                    SetServicesEnabled();
+                }
+            }
+            m_updates = false;
+            WriteLog("Leaving Options_eventCheckChanged");
+        }
+
+        private void FromTypes_eventCheckChanged(UIComponent component, bool value)
+        {
+            if (m_fromTypes == true) { return; }
+            m_fromTypes = true;
+
+            UICheckBox cb = (UICheckBox)component;
+
+            WriteLog("Entering FromTypes_eventCheckChanged: Option: " + cb.text);
+
+            int loc = 0;
+            try
+            {
+                plBasic.isVisible = false;
+                plHighway.isVisible = false;
+                plLarge.isVisible = false;
+                plMedium.isVisible = false;
+                plOneway.isVisible = false;
+                loc += 1;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("Exception in FromTypes_eventCheckChanged loc: " + loc + " Message:: " + ex.Message + " Stack::: " + ex.StackTrace);
+            }
+
+            //uncheck any others
+            foreach (UICheckBox c in fromTypes)
+            {
+                if (c.text != cb.text) { c.isChecked = false; }
+            }
+
+            if (cb.isChecked == true)
+            {
+                if (cb.text == "Basic") { plBasic.isVisible = true; }
+                if (cb.text == "Highway") { plHighway.isVisible = true; }
+                if (cb.text == "Large") { plLarge.isVisible = true; }
+                if (cb.text == "Medium") { plMedium.isVisible = true; }
+                if (cb.text == "Oneway") { plOneway.isVisible = true; }
+            }
+
+            m_fromTypes = false;
+
+            WriteLog("Leaving FromTypes_eventCheckChanged: Option: " + cb.text);
+        }
+
+        private void ToTypes_eventCheckChanged(UIComponent component, bool value)
+        {
+            if (m_toTypes == true) { return; }
+            m_toTypes = true;
+
+            UICheckBox cb = (UICheckBox)component;
+
+            WriteLog("Entering ToTypes_eventCheckChanged: Option: " + cb.text);
+
+            int loc = 0;
+            try
+            {
+                plToBasic.isVisible = false;
+                plToHighway.isVisible = false;
+                plToLarge.isVisible = false;
+                plToMedium.isVisible = false;
+                plToOneway.isVisible = false;
+                loc += 1;
+            }
+            catch (Exception ex)
+            {
+                WriteLog("Exception in ToTypes_eventCheckChanged loc: " + loc + " Message:: " + ex.Message + " Stack::: " + ex.StackTrace);
+            }
+
+            //uncheck any others
+            foreach (UICheckBox c in toTypes)
+            {
+                if (c.text != cb.text) { c.isChecked = false; }
+            }
+
+            if (cb.isChecked == true)
+            {
+                if (cb.text == "Basic") { plToBasic.isVisible = true; }
+                if (cb.text == "Highway") { plToHighway.isVisible = true; }
+                if (cb.text == "Large") { plToLarge.isVisible = true; }
+                if (cb.text == "Medium") { plToMedium.isVisible = true; }
+                if (cb.text == "Oneway") { plToOneway.isVisible = true; }
+            }
+
+            m_toTypes = false;
+
+            WriteLog("Leaving ToTypes_eventCheckChanged: Option: " + cb.text);
+        }
+
+        private void FromRoad_eventCheckChanged(UIComponent component, bool value)
+        {
+            if (m_fromRoads == true) { return; }
+            m_fromRoads = true;
+
+            UICheckBox cb = (UICheckBox)component;
+
+            WriteLog("Entering FromRoads_eventCheckChanged: Option: " + cb.text);
+
+            //uncheck any others
+            foreach (UICheckBox c in fromOneway) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in fromMedium) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in fromHighway) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in fromLarge) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in fromBasic) { if (c.text != cb.text) { c.isChecked = false; } }
+
+            fromSelected = String.Empty;
+            if (cb.isChecked) { fromSelected = cb.text; }
+
+            SetUpdateEnabled();
+
+            m_fromRoads = false;
+
+            WriteLog("Leaving FromRoads_eventCheckChanged: Option: " + cb.text);
+        }
+
+        private void ToRoad_eventCheckChanged(UIComponent component, bool value)
+        {
+            WriteLog("Entering ToRoads_eventCheckChanged: m_toRoads: " + m_toRoads);
+            if (m_toRoads == true) { return; }
+            m_toRoads = true;
+
+            UICheckBox cb = (UICheckBox)component;
+
+            WriteLog("Entering ToRoads_eventCheckChanged: Option: " + cb.text);
+
+            //uncheck any others
+            foreach (UICheckBox c in toOneway) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in toMedium) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in toHighway) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in toLarge) { if (c.text != cb.text) { c.isChecked = false; } }
+            foreach (UICheckBox c in toBasic) { if (c.text != cb.text) { c.isChecked = false; } }
+
+            toSelected = String.Empty;
+            if (cb.isChecked) { toSelected = cb.text; }
+            SetUpdateEnabled();
+
+            m_toRoads = false;
+
+            WriteLog("Leaving ToRoads_eventCheckChanged: Option: " + cb.text);
+        }
+        
+        private void Button_Clicked(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (plMain.isVisible == true)
+            {
+                this.enabled = false;
+                plMain.isVisible = false;
+            }
+            else
+            {
+                this.enabled = true;
+                plMain.isVisible = true;
+            }
+        }
+
+        #endregion
+
+        #region "Area Selection"
 
         public override void RenderOverlay(RenderManager.CameraInfo cameraInfo)
         {
@@ -1117,7 +1542,7 @@ namespace AnotherRoadUpdate
             }
         }
 
-        protected void BulldozeRoads()
+        protected void DelateLanes()
         {
             segmentsToDelete = new List<ushort>();
 
@@ -1131,42 +1556,49 @@ namespace AnotherRoadUpdate
             int gridMaxX = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
             int gridMaxZ = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
 
+            //string xy = "Values gridMinX, gridMinZ, gridMaxX, gridMaxY: " + gridMinX + ", " + gridMinZ + ", " + gridMaxX + ", " + gridMaxZ;
+
+            //WriteLog("About to loop: " + xy);
+
             for (int i = gridMinZ; i <= gridMaxZ; i++)
             {
                 for (int j = gridMinX; j <= gridMaxX; j++)
                 {
+                    //WriteLog("In the for loops ");
                     ushort num5 = NetManager.instance.m_segmentGrid[i * 270 + j];
                     int num6 = 0;
                     bool skip = false;
                     while (num5 != 0u)
                     {
+                        //WriteLog("In the while ");
                         var segment = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)];
 
+                        WriteLog("Segment name: " + segment.Info.name + " Service :" + segment.Info.GetService());
                         Vector3 position = segment.m_middlePosition;
                         float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
 
-                        if (positionDiff < 0f && segment.Info.name != "Airplane Path" && segment.Info.name != "Ship Path")
+                        if (positionDiff < 0f)
                         {
                             string seg = segment.Info.name;
                             // we need to handle Bridges (Elevated, Slope), tunnels, railroads, Pipe, Power Lines, 
-                            if (delTypes[(int)p.Tunnel].isChecked == false && (seg.Contains("Tunnel") || seg.Contains("Slope")))
-                                skip = true;
-                            else if (delTypes[(int)p.Bridge].isChecked == false && (seg.Contains("Elevated") || seg.Contains("Slope")))
-                                skip = true;
-                            else if (delTypes[(int)p.Roads].isChecked == false && seg.Contains("Road"))
-                                skip = true;
-                            else if (delTypes[(int)p.Railroads].isChecked == false && seg.Contains("Train"))
-                                skip = true;
-                            else if (delTypes[(int)p.Highways].isChecked == false && seg.Contains("Highway"))
-                                skip = true;
-                            else if (delTypes[(int)p.Pipes].isChecked == false && seg.Contains("Pipe"))
-                                skip = true;
-                            else if (delTypes[(int)p.PowerLines].isChecked == false && seg.Contains("Power"))
-                                skip = true;
-                            else if (delTypes[(int)p.Ground].isChecked == false && (seg.Contains("Tunnel") == false && seg.Contains("Slope") == false && seg.Contains("Elevated") == false))
-                                skip = true;
+                            if (deletes[(int)p.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; WriteLog("Skip Tunnel "); }                               
+                            else if (deletes[(int)p.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; WriteLog("Skip Elevated "); }
+                            else if (deletes[(int)p.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; WriteLog("Skip Slope "); }
+                            else if (deletes[(int)p.Roads].isChecked == false && seg.Contains("Road")) { skip = true; WriteLog("Skip Road "); }
+                            else if (deletes[(int)p.Railroads].isChecked == false && seg.Contains("Train")) { skip = true; WriteLog("Skip Train "); }
+                            else if (deletes[(int)p.Highways].isChecked == false && seg.Contains("Highway")) { skip = true; WriteLog("Skip Highway "); }
+                            else if (deletes[(int)p.PowerLines].isChecked == false && seg.Contains("Power")) { skip = true; WriteLog("Skip Power "); }
+                            else if (deletes[(int)p.WaterPipes].isChecked == false && seg.Contains("Water Pipe")) { skip = true; WriteLog("Skip Water "); }
+                            else if (deletes[(int)p.WaterPipes].isChecked == false && seg.Contains("Heat Pipe")) { skip = true; WriteLog("Skip Heat "); }
+                            else if (deletes[(int)p.Airplanes].isChecked == false && seg.Contains("Airplane")) { skip = true; WriteLog("Skip Airplane "); }
+                            else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Ship")) { skip = true; WriteLog("Skip Ship "); }
+                            else if (deletes[(int)p.Ground].isChecked == false &&
+                                    (seg.Contains("Tunnel") == false &&
+                                    seg.Contains("Slope") == false &&
+                                    seg.Contains("Elevated") == false)) { skip = true; WriteLog("Skip Ground, Bridge, Slope or Tunnel");  }
 
-                          WriteLog("Will the segment named, " + segment.Info.name + ", be delected? That is " + skip + ".");
+
+                           WriteLog("Will the segment named, " + segment.Info.name + ", be deleted? That is " + !skip + ".");
 
                             if (skip == false)
                             {
@@ -1420,9 +1852,13 @@ namespace AnotherRoadUpdate
                 {
                 if (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20)
                 {
+                    //WriteLog("Math.Abs(m_startPosition.x - m_mousePosition.x) + '' : '' + Math.Abs(m_startPosition.y - m_mousePosition.y) :" + xy);
+                    //WriteLog("(Math.Abs(m_startPosition.y - m_mousePosition.y) < 20 :" + (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20));
                     return;
                 }
-            } 
+            }
+
+            //WriteLog("fromSelect & toSelect :" + fromSelected + " & " + toSelected);
             if (fromSelected == string.Empty)
                 return;
             if (toSelected == string.Empty)
@@ -1439,18 +1875,13 @@ namespace AnotherRoadUpdate
             }
         }
 
-        protected void ApplyBulldoze()
+        protected void ApplyDeletes()
         {
-            //if there are no deletes exit
-            if (cbDelete.isVisible == false || cbDelete.isChecked == false) { return; }
-
-            if (delTypes[(int)p.Trees].isChecked)
-                BulldozeTrees();
             try
             {
-                if (delTypes[(int)p.Roads].isChecked || delTypes[(int)p.Railroads].isChecked || delTypes[(int)p.Highways].isChecked || delTypes[(int)p.Pipes].isChecked || delTypes[(int)p.PowerLines].isChecked)
+                if (deletes[(int)p.Roads].isChecked || deletes[(int)p.Railroads].isChecked || deletes[(int)p.Highways].isChecked || deletes[(int)p.PowerLines].isChecked || deletes[(int)p.WaterPipes].isChecked || deletes[(int)p.HeatPipes].isChecked || deletes[(int)p.Airplanes].isChecked || deletes[(int)p.Shipping].isChecked)
                 {
-                    BulldozeRoads();
+                    DelateLanes();
                 }
             }
             catch (Exception)
@@ -1458,22 +1889,24 @@ namespace AnotherRoadUpdate
                 throw;
             }
 
-            if (delTypes[(int)p.Buildings].isChecked)
+            if (deletes[(int)p.Buildings].isChecked)
                 BulldozeBuildings();
-            if (delTypes[(int)p.Props].isChecked)
+            if (deletes[(int)p.Props].isChecked)
                 BulldozeProps();
+            if (deletes[(int)p.Trees].isChecked)
+                BulldozeTrees();
         }
 
         #endregion
 
         #region "Logging"
 
-        public static void WriteLog(string data)
+        internal static void WriteLog(string data)
         {
             WriteLog(data, false);
         }
 
-        public static void WriteLog(string data, bool delete)
+        internal static void WriteLog(string data, bool delete)
         {
             string filename = "AnotherRoadUpdater" + DateTime.Now.ToString("yyyyMMdd") + ".txt";
             if (delete)
@@ -1486,9 +1919,10 @@ namespace AnotherRoadUpdate
             file.WriteLine(data);
             file.Close();
         }
+
+        #endregion
+
+        #endregion
+
     }
-
-    #endregion
-
-    #endregion
 }
