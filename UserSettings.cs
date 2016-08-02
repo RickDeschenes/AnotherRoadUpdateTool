@@ -11,7 +11,7 @@ namespace AnotherRoadUpdate
     {
         #region Declarations
 
-        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Curves", "Roads", "Railroads", "Highways", "PowerLines", "WaterPipes", "HeatPipes", "Airplanes", "Shipping", "Buildings", "Trees", "Props", "Ground", "Bridge", "Slope", "Tunnel", "Update", "Delete", "Services", "Toggle" };
+        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Roads", "Railroads", "Highways", "PowerLines", "WaterPipes", "HeatPipes", "Airplanes", "Shipping", "Pedestrian", "Bicycle", "Tram", "Metro", "Buildings", "Trees", "Props", "Ground", "Bridge", "Slope", "Tunnel", "Curve", "Update", "Delete", "Services", "Toggle", "Terrain", "TerrainHeight" };
 
         private bool _basic;
         private bool _large;
@@ -23,7 +23,6 @@ namespace AnotherRoadUpdate
         private bool _toHighway;
         private bool _toMedium;
         private bool _toOneway;
-        private bool _curves;
         private bool _roads;
         private bool _railroads;
         private bool _highways;
@@ -32,6 +31,10 @@ namespace AnotherRoadUpdate
         private bool _heatpipes;
         private bool _airplanes;
         private bool _shipping;
+        private bool _pedestrian;
+        private bool _bicycle;
+        private bool _tram;
+        private bool _metro;
         private bool _buildings;
         private bool _trees;
         private bool _props;
@@ -39,10 +42,14 @@ namespace AnotherRoadUpdate
         private bool _bridge;
         private bool _slope;
         private bool _tunnel;
+        private bool _curve;
         private bool _update;
         private bool _delete;
         private bool _services;
         private bool _toggle;
+        private bool _terrain;
+        private double _terrainheight;
+
         public bool Basic { get { return _basic; } set { _basic = value; } }
         public bool Large { get { return _large; } set { _large = value; } }
         public bool Highway { get { return _highway; } set { _highway = value; } }
@@ -53,7 +60,6 @@ namespace AnotherRoadUpdate
         public bool ToHighway { get { return _toHighway; } set { _toHighway = value; } }
         public bool ToMedium { get { return _toMedium; } set { _toMedium = value; } }
         public bool ToOneway { get { return _toOneway; } set { _toOneway = value; } }
-        public bool Curves { get { return _curves; } set { _curves = value; } }
         public bool Roads { get { return _roads; } set { _roads = value; } }
         public bool Railroads { get { return _railroads; } set { _railroads = value; } }
         public bool Highways { get { return _highways; } set { _highways = value; } }
@@ -62,6 +68,10 @@ namespace AnotherRoadUpdate
         public bool HeatPipes { get { return _heatpipes; } set { _heatpipes = value; } }
         public bool Airplanes { get { return _airplanes; } set { _airplanes = value; } }
         public bool Shipping { get { return _shipping; } set { _shipping = value; } }
+        public bool Pedestrian { get { return _pedestrian; } set { _pedestrian = value; } }
+        public bool Bicycle { get { return _bicycle; } set { _shipping = value; } }
+        public bool Tram { get { return _tram; } set { _tram = value; } }
+        public bool Metro { get { return _metro; } set { _metro = value; } }
         public bool Buildings { get { return _buildings; } set { _buildings = value; } }
         public bool Trees { get { return _trees; } set { _trees = value; } }
         public bool Props { get { return _props; } set { _props = value; } }
@@ -69,10 +79,13 @@ namespace AnotherRoadUpdate
         public bool Bridge { get { return _bridge; } set { _bridge = value; } }
         public bool Slope { get { return _slope; } set { _slope = value; } }
         public bool Tunnel { get { return _tunnel; } set { _tunnel = value; } }
+        public bool Curve { get { return _curve; } set { _curve = value; } }
         public bool Update { get { return _update; } set { _update = value; } }
         public bool Delete { get { return _delete; } set { _delete = value; } }
         public bool Services { get { return _services; } set { _services = value; } }
         public bool Toggle { get { return _toggle; } set { _toggle = value; } }
+        public bool Terrain { get { return _terrain; } set { _terrain = value; } }
+        public double TerrainHeight { get { return _terrainheight; } set { _terrainheight = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
         private string us = fileName;
@@ -114,7 +127,6 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/ToHighway").InnerText = ToHighway.ToString();
                 xml.SelectSingleNode("UserSettings/ToMedium").InnerText = ToMedium.ToString();
                 xml.SelectSingleNode("UserSettings/ToOneway").InnerText = ToOneway.ToString();
-                xml.SelectSingleNode("UserSettings/Curves").InnerText = Curves.ToString();
                 xml.SelectSingleNode("UserSettings/Roads").InnerText = Roads.ToString();
                 xml.SelectSingleNode("UserSettings/Railroads").InnerText = Railroads.ToString();
                 xml.SelectSingleNode("UserSettings/Highways").InnerText = Highways.ToString();
@@ -123,6 +135,10 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/HeatPipes").InnerText = HeatPipes.ToString();
                 xml.SelectSingleNode("UserSettings/Airplanes").InnerText = Airplanes.ToString();
                 xml.SelectSingleNode("UserSettings/Shipping").InnerText = Shipping.ToString();
+                xml.SelectSingleNode("UserSettings/Pedestrian").InnerText = Pedestrian.ToString();
+                xml.SelectSingleNode("UserSettings/Bicycle").InnerText = Bicycle.ToString();
+                xml.SelectSingleNode("UserSettings/Tram").InnerText = Tram.ToString();
+                xml.SelectSingleNode("UserSettings/Metro").InnerText = Metro.ToString();
                 xml.SelectSingleNode("UserSettings/Buildings").InnerText = Buildings.ToString();
                 xml.SelectSingleNode("UserSettings/Trees").InnerText = Trees.ToString();
                 xml.SelectSingleNode("UserSettings/Props").InnerText = Props.ToString();
@@ -130,14 +146,17 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/Bridge").InnerText = Bridge.ToString();
                 xml.SelectSingleNode("UserSettings/Slope").InnerText = Bridge.ToString();
                 xml.SelectSingleNode("UserSettings/Tunnel").InnerText = Tunnel.ToString();
+                xml.SelectSingleNode("UserSettings/Curve").InnerText = Curve.ToString();
                 xml.SelectSingleNode("UserSettings/Update").InnerText = Update.ToString();
                 xml.SelectSingleNode("UserSettings/Delete").InnerText = Delete.ToString();
                 xml.SelectSingleNode("UserSettings/Services").InnerText = Services.ToString();
                 xml.SelectSingleNode("UserSettings/Toggle").InnerText = Toggle.ToString();
+                xml.SelectSingleNode("UserSettings/Terrain").InnerText = Terrain.ToString();
+                xml.SelectSingleNode("UserSettings/TerrainHeight").InnerText = TerrainHeight.ToString("0.00");
             }
             catch (Exception ex)
             {
-                RoadUpdateTool.WriteLog("UserSettings.Save loc: " + loc + " error: " + ex.Message + ":: Stacktrace: " + ex.StackTrace);
+                RoadUpdateTool.WriteLog("UserSettings.Save loc: " + loc + " error: " + ex.Message + ":: Stacktrace: " + ex.StackTrace, true);
             }
             xml.Save(us);
         }
@@ -154,7 +173,7 @@ namespace AnotherRoadUpdate
             _toHighway = ValidateSetting("ToHighway");
             _toMedium = ValidateSetting("ToMedium");
             _toOneway = ValidateSetting("ToOneway");
-            _curves = ValidateSetting("Curves");
+
             _roads = ValidateSetting("Roads");
             _railroads = ValidateSetting("Railroads");
             _highways = ValidateSetting("Highways");
@@ -163,6 +182,11 @@ namespace AnotherRoadUpdate
             _heatpipes = ValidateSetting("HeatPipes");
             _airplanes = ValidateSetting("Airplanes");
             _shipping = ValidateSetting("Shipping");
+            _pedestrian = ValidateSetting("Pedestrian");
+            _bicycle = ValidateSetting("Bicycle");
+            _tram = ValidateSetting("Tram");
+            _metro = ValidateSetting("Metro");
+
             _buildings = ValidateSetting("Buildings");
             _trees = ValidateSetting("Trees");
             _props = ValidateSetting("Props");
@@ -170,10 +194,13 @@ namespace AnotherRoadUpdate
             _bridge = ValidateSetting("Bridge");
             _bridge = ValidateSetting("Slope");
             _tunnel = ValidateSetting("Tunnel");
+            _curve = ValidateSetting("Curve");
             _update = ValidateSetting("Update");
             _delete = ValidateSetting("Delete");
             _services = ValidateSetting("Services");
             _toggle = ValidateSetting("Toggle");
+            _terrain = ValidateSetting("Terrain");
+            _terrainheight = ValidateSetting("TerrainHeight", "double");
         }
 
         private bool ValidateSetting(string node)
@@ -191,6 +218,25 @@ namespace AnotherRoadUpdate
             }
             //we have a node get the value
             setting = (xml.SelectSingleNode("UserSettings/" + node).InnerText == "True");
+            return setting;
+        }
+        private double ValidateSetting(string node, string type)
+        {
+            //we already validated the file exists and has our node "UserSettings"
+            double setting = 0.0;
+            //create a new node
+            if (xml.SelectSingleNode("UserSettings/" + node) == null)
+            {
+                XmlNode tb = xml.SelectSingleNode("UserSettings");
+                XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
+                nd.InnerText = false.ToString();
+                RoadUpdateTool.WriteLog("creating a node: " + node);
+                tb.AppendChild(nd);
+            }
+            //we have a node get the value
+            string temp = xml.SelectSingleNode("UserSettings/" + node).InnerText;
+            if (double.TryParse(temp, out setting) == false)
+                setting = 0.0;
             return setting;
         }
 
