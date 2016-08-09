@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Interface>
+  <Options>
+    <Updates>
+      <name>Updates</name>
+      <translation />
+    </Updates>
+    <Deletes>
+      <name>Deletes</name>
+      <translation />
+    </Deletes>
+    <Services>
+      <name>Services</name>
+      <translation />
+    </Services>
+    <Terrain>
+      <name>Terrain</name>
+      <translation />
+    </Terrain>
+  </Options>
+  <Types>
+    <Ground>
+      <name>Ground</name>
+      <translation />
+    </Ground>
+    <Bridge>
+      <name>Bridge</name>
+      <translation />
+    </Bridge>
+    <Slope>
+      <name>Slope</name>
+      <translation />
+    </Slope>
+    <Tunnel>
+      <name>Tunnel</name>
+      <translation />
+    </Tunnel>
+    <Curve>
+      <name>Curve</name>
+      <translation />
+    </Curve>
+  </Types>
+  <Roads>
+    <Basic>
+      <name>Basic</name>
+      <translation />
+    </Basic>
+    <Highway>
+      <name>Highway</name>
+      <translation />
+    </Highway>
+    <Large>
+      <name>Large</name>
+      <translation />
+    </Large>
+    <Medium>
+      <name>Medium</name>
+      <translation />
+    </Medium>
+    <Oneway>
+      <name>Oneway</name>
+      <translation />
+    </Oneway>
+  </Roads>
+  <Basic>
+    <Basic>
+      <name>Basic Road</name>
+      <translation />
+    </Basic>
+    <Grass>
+      <name>Basic Road Decoration Grass</name>
+      <translation />
+    </Grass>
+    <Trees>
+      <name>Basic Road Decoration Trees</name>
+      <translation />
+    </Trees>
+    <Bicycle>
+      <name>Basic Road Bicycle</name>
+      <translation />
+    </Bicycle>
+    <Tram>
+      <name>Basic Road Tram</name>
+      <translation />
+    </Tram>
+    <Gravel>
+      <name>Gravel Road</name>
+      <translation />
+    </Gravel>
+  </Basic>
+  <Highway>
+    <Barrier>
+      <name>Highway Barrier</name>
+      <translation />
+    </Barrier>
+    <Highway>
+      <name>Highway</name>
+      <translation />
+    </Highway>
+    <HighwayRamp>
+      <name>HighwayRamp</name>
+      <translation />
+    </HighwayRamp>
+    <HighwayRampElevated>
+      <name>HighwayRampElevated</name>
+      <translation />
+    </HighwayRampElevated>
+  </Highway>
+  <Large>
+    <Large>
+      <name>Large Road</name>
+      <translation />
+    </Large>
+    <Grass>
+      <name>Large Road Decoration Grass</name>
+      <translation />
+    </Grass>
+    <Trees>
+      <name>Large Road Decoration Trees</name>
+      <translation />
+    </Trees>
+    <Bicycle>
+      <name>Large Road Bicycle</name>
+      <translation />
+    </Bicycle>
+    <Tram>
+      <name>Large Road Tram</name>
+      <translation />
+    </Tram>
+    <Bus>
+      <name>Large Road Bus</name>
+      <translation />
+    </Bus>
+    <LargeOneway>
+      <name>Large Oneway</name>
+      <translation />
+    </LargeOneway>
+    <OnewayGrass>
+      <name>Large Oneway Decoration Grass</name>
+      <translation />
+    </OnewayGrass>
+    <OnewayTrees>
+      <name>Large Oneway Decoration Trees</name>
+      <translation />
+    </OnewayTrees>
+  </Large>
+  <Medium>
+    <Medium>
+      <name>Medium Road</name>
+      <translation />
+    </Medium>
+    <Grass>
+      <name>Medium Road Decoration Grass</name>
+      <translation />
+    </Grass>
+    <Trees>
+      <name>Medium Road Decoration Trees</name>
+      <translation />
+    </Trees>
+    <Bicycle>
+      <name>Medium Road Bicycle</name>
+      <translation />
+    </Bicycle>
+    <Bus>
+      <name>Medium Road Bus</name>
+      <translation />
+    </Bus>
+    <Tram>
+      <name>Medium Road Tram</name>
+      <translation />
+    </Tram>
+  </Medium>
+  <Oneway>
+    <Oneway>
+      <name>Oneway Road</name>
+      <translation />
+    </Oneway>
+    <Grass>
+      <name>Oneway Road Decoration Grass</name>
+      <translation />
+    </Grass>
+    <Trees>
+      <name>Oneway Road Decoration Trees</name>
+      <translation />
+    </Trees>
+    <Tram>
+      <name>Oneway Road Tram</name>
+      <translation />
+    </Tram>
+    <TramTrack>
+      <name>Tram Track</name>
+      <translation />
+    </TramTrack>
+    <Tram>
+      <name>Oneway Tram Track</name>
+      <translation />
+    </Tram>
+  </Oneway>
+  <Deletes>
+    <Roads>
+      <name>Roads</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </Roads>
+    <Railroads>
+      <name>Railroads</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </Railroads>
+    <Highways>
+      <name>Highways</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </Highways>
+    <PowerLines>
+      <name>PowerLines</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </PowerLines>
+    <WaterPipes>
+      <name>Water Pipes</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </WaterPipes>
+    <HeatPipes>
+      <name>Heat Pipes</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </HeatPipes>
+    <Airplane>
+      <name>Airplanes</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </Airplane>
+    <Shipping>
+      <name>Shipping</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </Shipping>
+    <Pedestrian>
+      <name>Pedestrian</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </Pedestrian>
+    <Bicycle>
+      <name>Bicycle</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </Bicycle>
+    <Tram>
+      <name>Tram</name>
+      <translation />
+      <section>Lines</section>
+      <column>A</column>
+    </Tram>
+    <Metro>
+      <name>Metro</name>
+      <translation />
+      <section>Lines</section>
+      <column>B</column>
+    </Metro>
+    <Buildings>
+      <name>Buildings</name>
+      <translation />
+      <section>Properties</section>
+      <column />
+    </Buildings>
+    <Trees>
+      <name>Trees</name>
+      <translation />
+      <section>Properties</section>
+      <column />
+    </Trees>
+    <Props>
+      <name>Props</name>
+      <translation />
+      <section>Properties</section>
+      <column />
+    </Props>
+  </Deletes>
+  <Services>
+    <HealthCare>
+      <name>HealthCare</name>
+      <translation />
+    </HealthCare>
+    <PoliceDepartment>
+      <name>PoliceDepartment</name>
+      <translation />
+    </PoliceDepartment>
+    <FireDepartment>
+      <name>FireDepartment</name>
+      <translation />
+    </FireDepartment>
+    <PublicTransport>
+      <name>PublicTransport</name>
+      <translation />
+    </PublicTransport>
+    <Education>
+      <name>Education</name>
+      <translation />
+    </Education>
+    <Electricity>
+      <name>Electricity</name>
+      <translation />
+    </Electricity>
+    <Water>
+      <name>Water</name>
+      <translation />
+    </Water>
+    <Garbage>
+      <name>Garbage</name>
+      <translation />
+    </Garbage>
+    <Beautification>
+      <name>Beautification</name>
+      <translation />
+    </Beautification>
+    <Monument>
+      <name>Monument</name>
+      <translation />
+    </Monument>
+  </Services>
+</Interface>

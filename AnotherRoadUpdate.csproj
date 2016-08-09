@@ -62,10 +62,15 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Include="Interface.cs" />
     <Compile Include="UserSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Dozer64.ico" />
+    <EmbeddedResource Include="ARUTInterface.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

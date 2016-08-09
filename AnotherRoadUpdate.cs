@@ -222,6 +222,7 @@ namespace AnotherRoadUpdate
         private string[] m_heights = new string[] { "0.00", "5.00", "10.00", "15.00", "20.00", "25.00", "30.00", "35.00", "40.00", "45.00", "50.00", "55.00", "60.00", "65.00", "70.00", "75.00", "80.00", "85.00", "90.00", "95.00", "100.00", "150.00", "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00", "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
         UserSettings us = new UserSettings();
+        Interface it = new Interface();
 
         #endregion
 
@@ -231,11 +232,17 @@ namespace AnotherRoadUpdate
 
         protected override void Awake()
         {
-            WriteLog("ARUT awake!", true);
+            WriteLog("ARUT awake!");
             m_active = false;
             base.Awake();
         }
-        
+
+        protected override void OnToolUpdate()
+        {
+            //WriteLog("ARUT OnToolUpdate!");
+            base.OnToolUpdate();
+        }
+
         protected override void OnEnable()
         {
             UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
@@ -259,6 +266,7 @@ namespace AnotherRoadUpdate
 
             UndoList = new BindingList<UndoStroke>();
 
+            WriteLog("ARUT OnEnable!");
             base.OnEnable();
         }
 
@@ -266,6 +274,8 @@ namespace AnotherRoadUpdate
         {
             if (plMain != null)
                 plMain.isVisible = false;
+
+            WriteLog("ARUT OnDisable!");
             base.OnDisable();
         }
 
@@ -347,6 +357,28 @@ namespace AnotherRoadUpdate
             }
         }
 
+        protected override void OnToolLateUpdate()
+        {
+            //WriteLog("ARUT OnToolLateUpdate!");
+            Vector3 mousePosition = Input.mousePosition;
+            Vector3 cameraDirection = Vector3.Cross(Camera.main.transform.right, Vector3.up);
+            cameraDirection.Normalize();
+            while (!Monitor.TryEnter(this.m_dataLock, SimulationManager.SYNCHRONIZE_TIMEOUT))
+            {
+            }
+            try
+            {
+                this.m_mouseRay = Camera.main.ScreenPointToRay(mousePosition);
+                this.m_mouseRayLength = Camera.main.farClipPlane;
+                this.m_cameraDirection = cameraDirection;
+                this.m_mouseRayValid = (!this.m_toolController.IsInsideUI && UnityEngine.Cursor.visible);
+            }
+            finally
+            {
+                Monitor.Exit(this.m_dataLock);
+            }
+        }
+
         #endregion
 
         public void InitGui(LoadMode _mode)
@@ -407,30 +439,9 @@ namespace AnotherRoadUpdate
 
                 //We can load the users last session
                 GetSettings(true);
-
+                WriteLog("it.BasicRoads.Basic.name: " + it.BasicRoads.Basic.name);
                 //WriteLog("Leaving InitGUI", true);
                 //WriteLog("Leaving InitGUI");
-            }
-        }
-        
-        protected override void OnToolLateUpdate()
-        {
-            Vector3 mousePosition = Input.mousePosition;
-            Vector3 cameraDirection = Vector3.Cross(Camera.main.transform.right, Vector3.up);
-            cameraDirection.Normalize();
-            while (!Monitor.TryEnter(this.m_dataLock, SimulationManager.SYNCHRONIZE_TIMEOUT))
-            {
-            }
-            try
-            {
-                this.m_mouseRay = Camera.main.ScreenPointToRay(mousePosition);
-                this.m_mouseRayLength = Camera.main.farClipPlane;
-                this.m_cameraDirection = cameraDirection;
-                this.m_mouseRayValid = (!this.m_toolController.IsInsideUI && UnityEngine.Cursor.visible);
-            }
-            finally
-            {
-                Monitor.Exit(this.m_dataLock);
             }
         }
 
@@ -454,13 +465,13 @@ namespace AnotherRoadUpdate
 
             if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
             {
-                options[(int)ops.Services].Enable();
-                options[(int)ops.Terrain].Disable();
-            }
-            if (mode != LoadMode.LoadMap || mode != LoadMode.NewMap)
-            {
                 options[(int)ops.Services].Disable();
                 options[(int)ops.Terrain].Enable();
+            }
+            else
+            {
+                options[(int)ops.Services].Enable();
+                options[(int)ops.Terrain].Disable();
             }
             
             typ = GenerateplTypes(panel, srv, plx);
@@ -1860,46 +1871,6 @@ namespace AnotherRoadUpdate
             }
         }
         
-        int RebuildSegment(int segmentIndex, NetInfo newPrefab, bool roadDirectionMatters, Vector3 directionPoint, Vector3 direction, ref ToolBase.ToolErrors error)
-        {
-            NetManager net = Singleton<NetManager>.instance;
-
-            if (segmentIndex >= net.m_segments.m_buffer.Length)
-                return 0;
-
-            NetInfo prefab = net.m_segments.m_buffer[segmentIndex].Info;
-
-            NetTool.ControlPoint startPoint;
-            NetTool.ControlPoint middlePoint;
-            NetTool.ControlPoint endPoint;
-            GetSegmentControlPoints(segmentIndex, out startPoint, out middlePoint, out endPoint);
-            
-            bool test = false;
-            bool visualize = false;
-            bool autoFix = true;
-            bool needMoney = false;
-            bool invert = false;
-            
-            ushort node = 0;
-            ushort segment = 0;
-            int cost = 0;
-            int productionRate = 0;
-
-            NetTool.CreateNode(newPrefab, startPoint, middlePoint, endPoint, NetTool.m_nodePositionsSimulation, 1000, test, visualize, autoFix, needMoney, invert, false, (ushort)0, out node, out segment, out cost, out productionRate);
-            
-            if (segment != 0)
-            {
-                if (newPrefab.m_class.m_service == ItemClass.Service.Road)
-                {
-                    Singleton<CoverageManager>.instance.CoverageUpdated(ItemClass.Service.None, ItemClass.SubService.None, ItemClass.Level.None);
-                }
-                
-                return segment;
-            }
-
-            return 0;
-        }
-
         #endregion
 
         #region "Updates, Deletes, Toggles, Oh my!"
@@ -1931,25 +1902,18 @@ namespace AnotherRoadUpdate
             {
                 NetSegment segment = buffer[i];
 
-                // do not uncomment unless you know not to multi click
-                //if (Array.Exists(m_roads, (s) => { return s == segment.Info.name; }))
-                //{
-                //    sw.WriteLine(segment.Info.name + " from: " + convertFrom + " to: " + convertTo);
-                //}
-                //sw.WriteLine(segment.Info.name + " from: " + convertFrom + " to: " + convertTo);
-
                 //Validate in selected area
                 if (segment.Info == null)
                 {
-                    //sw.WriteLine(String.Format("Segment {0} is Null.",segment.Info.name
+                    //sw.WriteLine(String.Format("Segment {0} is Null.", segment.Info.name));
                 }
-                else if (segment.Info.name != convertFrom)
+                else if (!segment.Info.name.Contains(convertFrom))
                 {
                     //sw.WriteLine(String.Format("Segment {0} is not a converting item.", segment.Info.name));
                 }
                 else if (ValidateSelectedArea(segment) == false)
                 {
-                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name
+                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name));
                 }
                 else
                 {
@@ -1958,10 +1922,6 @@ namespace AnotherRoadUpdate
                     bool Curved = AngleBetween(segment.m_startDirection, segment.m_endDirection, 1);                  
 
                     string seg = segment.Info.name;
-                    //sw.WriteLine("Curved: " + Curved + " seg: " + seg + " m_cornerAngleEnd: " + segment.m_cornerAngleEnd + " m_cornerAngleStart: " + segment.m_cornerAngleStart);
-                    //sw.WriteLine("seg: " + seg + " m_endLeftSegment: " + segment.m_endLeftSegment + " m_endRightSegment: " + segment.m_endRightSegment);
-                    //sw.WriteLine("seg: " + seg + " m_startLeftSegment: " + segment.m_startLeftSegment + " m_startRightSegment: " + segment.m_startRightSegment);
-                    sw.WriteLine("Curved: " + Curved + " seg: " + seg + " m_startDirection: " + segment.m_startDirection + " m_endDirection: " + segment.m_endDirection);
 
                     NetTool.ControlPoint point;
                     NetTool.ControlPoint point2;
@@ -1983,7 +1943,7 @@ namespace AnotherRoadUpdate
                     //sw.WriteLine(segment.Info.name + " converting to " + convertTo + ".");
                     //sw.WriteLine("About to call GetSegmentControlPoints.\n");
 
-                    this.GetSegmentControlPoints(i, out point, out point2, out point3);
+                    GetSegmentControlPoints(i, out point, out point2, out point3);
                     bool visualize = false;
                     bool autoFix = true;
                     bool needMoney = true;
@@ -2010,34 +1970,34 @@ namespace AnotherRoadUpdate
                         {
                             WriteLog("Error testing convert of: " + segment.Info.name + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace, false, true);
                         }
-                        //sw.WriteLine("Called NetTool.Create.\n");
                         if (errors == 0)
                         {
                             try
                             {
-                                errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsSimulation, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
+                                errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
                                 num++;
-                                //sw.WriteLine("Cost: " + num5);
                                 totalCost += tempCost;
                             }
                             catch (Exception ex)
                             {
-                                WriteLog("Error converting: " + segment.Info.name + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace, false, true);
+                                string message = "Error converting: " + segment.Info.name + " errors: " + errors + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace;
+                                string lenght = "Left Segment Lenght: " + Math.Abs((float)(segment.m_startLeftSegment - segment.m_endLeftSegment)).ToString();
+                                lenght += " Right Segment Lenght: " + Math.Abs((float)(segment.m_startRightSegment - segment.m_endRightSegment)).ToString();
+                                sw.WriteLine(lenght);
+                                WriteLog(message, false, true);
+                                sw.WriteLine(message);
                                 issues += 1;
                             }
                         }
                         else
                         {
-                            sw.WriteLine("Could not convert: " + segment.Info.name + " to " + convertTo + ". Message22: " + errors);
+                            sw.WriteLine("Error test convert: " + segment.Info.name + " to " + convertTo + ". Message22: " + errors);
                             issues += 1;
                         }
                     }
                 }
             }
-            sw.WriteLine("Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues);
             lInformation.text = "Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues;
-            sw.WriteLine(String.Format("Exiting ConvertObjects at: {0} after converting: {1} items .", DateTime.Now.TimeOfDay, num));
-            sw.WriteLine("");
             WriteLog("" + sw);
             UIView.RefreshAll(true);
             return num;
@@ -2050,24 +2010,24 @@ namespace AnotherRoadUpdate
             Vector2 v1 = new Vector2(deg1.x, deg1.z);
             Vector2 v2 = new Vector2(deg2.x, deg2.z);
 
-            WriteLog("v1 & v2 are: " + v1 + " & " + v2);
+           // WriteLog("v1 & v2 are: " + v1 + " & " + v2);
 
             float a1 = Vector2.Angle(new Vector2(), v1);
             float a2 = Vector2.Angle(new Vector2(), v2);
 
-            WriteLog("a1 & a2 are: " + a1 + " & " + a2);
+            //WriteLog("a1 & a2 are: " + a1 + " & " + a2);
 
             float angle = Vector2.Angle(v1, v2);
 
-            WriteLog("The angle between v1 & v2 is: " + angle);
+            //WriteLog("The angle between v1 & v2 is: " + angle);
 
             ////the angles are based from a stright line so the 45 dergrees must be accounted for
             //angle -= 45;
-            if (angle > 270) { angle -= 270; }
-            if (angle > 180) { angle -= 180; }
-            if (angle > 90) { angle -= 90; }
+            if (angle >= 270) { angle -= 270; }
+            if (angle >= 180) { angle -= 180; }
+            if (angle >= 90) { angle -= 90; }
 
-            WriteLog("The angle is: " + angle);
+            //WriteLog("The angle is: " + angle);
             result = (angle > compare);
 
             return result;
@@ -2358,15 +2318,19 @@ namespace AnotherRoadUpdate
             return false;
         }
 
-        void GetSegmentControlPoints(int segmentIndex, out NetTool.ControlPoint startPoint, out NetTool.ControlPoint middlePoint, out NetTool.ControlPoint endPoint)
+        private void GetSegmentControlPoints(int segmentIndex, out NetTool.ControlPoint startPoint, out NetTool.ControlPoint middlePoint, out NetTool.ControlPoint endPoint)
         {
+            //WriteLog("Entering GetSegmentControlPoints");
             NetManager net = Singleton<NetManager>.instance;
             startPoint = new NetTool.ControlPoint();
             middlePoint = new NetTool.ControlPoint();
             endPoint = new NetTool.ControlPoint();
 
             if (segmentIndex >= net.m_segments.m_buffer.Length)
+            {
+                WriteLog("GetSegmentControlPoints:: segmentIndex >= net.m_segments.m_buffer.Length: segmentIndex: " + segmentIndex + " net.m_segments.m_buffer.Length: " + net.m_segments.m_buffer.Length);
                 return;
+            }
 
             NetInfo prefab = net.m_segments.m_buffer[segmentIndex].Info;
 
@@ -2390,6 +2354,7 @@ namespace AnotherRoadUpdate
             middlePoint.m_direction = startPoint.m_direction;
             middlePoint.m_elevation = Mathf.Lerp(startPoint.m_elevation, endPoint.m_elevation, 0.5f);
             middlePoint.m_outside = false;
+            //WriteLog("Leaving GetSegmentControlPoints");
         }
 
         private void ApplyServices()
@@ -2402,30 +2367,40 @@ namespace AnotherRoadUpdate
             for (int i = 0; i < buffer.Length; i++)
             {
                 Building bd = buffer[i];
-                BuildingInfo bi = bd.Info;
-                if (bi.m_class.m_service == ItemClass.Service.FireDepartment)
+
+                if (bd.Info.m_class.m_service == ItemClass.Service.FireDepartment)
                 {
-                    //WriteLog("bi.m_class.ToString(): ");
-                    ushort id = (ushort)bd.Info.GetInstanceID();
-                    bool temp = bd.Info.isActiveAndEnabled;
-                    int tep = bd.Info.m_UIPriority;
+                    WriteLog("Building Name: " + bd.Info.gameObject.name + " GetName: " + GetName(bd));
+                    WriteLog("BuildingAI Name: " + bd.Info.m_buildingAI.name);
+                    WriteLog("Building.Info.GetLocalizedTitle : " + bd.Info.GetLocalizedTitle());
 
                     string bn = bd.Info.gameObject.name;
+                    string onoff = "Off";
+                    byte rate = 0;
 
-                    Vector3 v3 = bd.CalculatePosition(new Vector3());
+                    if (toggle == true) { onoff = "On"; rate = 100; }
+                    
+                    WriteLog("Setting services to " + onoff + ". bd.m_flags was: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
+                    if (bd.m_flags.IsFlagSet(Building.Flags.Active) != toggle)
+                    {
+                        WriteLog("About to toggle: ");
+                        bd.m_flags ^= Building.Flags.Active;
+                        bd.m_productionRate = rate;
+                    }
+                    bd.Info.name = "MyNameChanged";
 
-                    //WriteLog("Settings before: " + bd.m_netNode);
-                    //WriteLog("name : " + bn);
-                    //WriteLog(" : " + bi.enabled);
-                    //WriteLog(" : " + bi.category);
-                    //WriteLog(" : " + bi.GetAI().enabled);
-                    //WriteLog(" : " + bd.m_flags.GetFlags());
-                    bd.m_netNode = 0;
-
-                    //WriteLog("Settings after: " + bd.m_netNode);
+                    WriteLog("Setting services to " + onoff + ". bd.m_flags is: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
                 }
+                buffer[i] = bd;
             }
             //WriteLog("Leaving ApplyServices: Code not yet implamented.");
+        }
+
+        private string GetName(Building bd)
+        {
+            InstanceID id = new InstanceID();
+            id.Building = (ushort)bd.Info.GetInstanceID();
+            return Singleton<InstanceManager>.instance.GetName(id);
         }
 
         protected void ApplyUpdates()
