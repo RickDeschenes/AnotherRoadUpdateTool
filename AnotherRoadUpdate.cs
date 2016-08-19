@@ -69,7 +69,8 @@ namespace AnotherRoadUpdate
             Updates = 0,
             Deletes = 1,
             Services = 2,
-            Terrain = 3
+            Terrain = 3,
+            Districts = 4
         }
 
         private enum dl
@@ -85,6 +86,28 @@ namespace AnotherRoadUpdate
             Beautification = 8,
             Monument = 9
         }
+
+        //None = 0,
+        //Residential = 1,
+        //Commercial = 2,
+        //Industrial = 3,
+        //Unused1 = 4,
+        //Unused2 = 5,
+        //Citizen = 6,
+        //Tourism = 7,
+        //Office = 8,
+        //Road = 9,
+        //Electricity = 10,
+        //Water = 11,
+        //Beautification = 12,
+        //Garbage = 13,
+        //HealthCare = 14,
+        //PoliceDepartment = 15,
+        //Education = 16,
+        //Monument = 17,
+        //FireDepartment = 18,
+        //PublicTransport = 19,
+        //Government = 20
 
         public struct UndoStroke
         {
@@ -171,6 +194,7 @@ namespace AnotherRoadUpdate
         private UIPanel plToMedium;
         private UIPanel plToOneway;
         private UIPanel plTerrain;
+        private UIPanel plDistricts;
 
         private UILabel lLines;
         private UILabel lProperties;
@@ -178,6 +202,7 @@ namespace AnotherRoadUpdate
         private UILabel lInformation;
 
         private UIButton btHelp;
+        private UIButton btHide;
         private UIButton mainButton;
         private UICheckBox cbToggle;
         private UIDropDown ddHeights;
@@ -209,7 +234,7 @@ namespace AnotherRoadUpdate
         #endregion
 
         //These strings are importent in that they control the interface
-        private string[] m_options = new string[] { "Updates", "Deletes", "Services", "Terrain" };
+        private string[] m_options = new string[] { "Updates", "Deletes", "Services", "Terrain", "Districts" };
         private string[] m_types = new string[] { "Ground", "Bridge", "Slope", "Tunnel", "Curve" };
         private string[] m_roads = new string[] { "Label ToFrom", "Basic", "Highway", "Large", "Medium", "Oneway" };
         private string[] m_basic = new string[] { "Basic Road", "Basic Road Decoration Grass", "Basic Road Decoration Trees", "Basic Road Bicycle", "Basic Road Tram", "Gravel Road" };
@@ -223,6 +248,9 @@ namespace AnotherRoadUpdate
 
         UserSettings us = new UserSettings();
         Interface it = new Interface();
+
+        private static bool m_delete = true;
+        private static bool m_deletelog;
 
         #endregion
 
@@ -343,14 +371,20 @@ namespace AnotherRoadUpdate
                             ApplyServices();
                         //WriteLog("Tried ApplyServices");
                     }
+                    else if (options[(int)ops.Districts].isChecked && plDistricts.isVisible)
+                    {
+                        //WriteLog("Trying ApplyDistrictsChange");
+                        ApplyDistrictsChange();
+                        //WriteLog("Trying ApplyDistrictsChange");
+                    }
                     else if (options[(int)ops.Terrain].isChecked && plTerrain.isVisible)
                     {
-                        WriteLog("Trying ApplyTerrainChange");
+                        //WriteLog("Trying ApplyTerrainChange");
                         this.m_endPosition = this.m_mousePosition;
                         //Handle Services on/off or Terrian Updates (Map mode)
                         if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                             ApplyTerrainChange();
-                        WriteLog("Trying ApplyTerrainChange");
+                        //WriteLog("Trying ApplyDistrictsChange");
                     }
                     m_active = false;
                 }
@@ -419,17 +453,20 @@ namespace AnotherRoadUpdate
                 plMain.name = "AnotherRoadUpdateTool";
                 //Create the panels (Little like a tab view)
                 int height = CreatePanels(plMain);
-
-                //add events to update the settings
+                
                 plMain.size = new Vector2(575, height);
 
-                btHelp = plMain.AddUIComponent<UIButton>();
-                btHelp.size = new Vector2(25, 25);
-                btHelp.relativePosition = new Vector3(575 - 25, height - 25);
-                btHelp.text = "¿";
-                btHelp.tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
+                string tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
+                btHelp = addButton(plMain, "¿", tooltip, 765, 260,  25, 25);
                 btHelp.isVisible = true;
+                //btHelp.zOrder = 0;
                 btHelp.eventDoubleClick += btHelp_eventDoubleClick;
+
+                tooltip = "I will try to close the option panel.";
+                btHide = addButton(plMain, "Close", tooltip, 765, -285, 75, 25);
+                btHide.isVisible = true;
+                //btHide.zOrder = 0;
+                btHide.eventClick += btHide_eventClick;
 
                 plMain.relativePosition = new Vector2
                 (
@@ -439,7 +476,7 @@ namespace AnotherRoadUpdate
 
                 //We can load the users last session
                 GetSettings(true);
-                WriteLog("it.BasicRoads.Basic.name: " + it.BasicRoads.Basic.name);
+                //WriteLog("it.BasicRoads.Basic.name: " + it.BasicRoads.Basic.name);
                 //WriteLog("Leaving InitGUI", true);
                 //WriteLog("Leaving InitGUI");
             }
@@ -475,15 +512,15 @@ namespace AnotherRoadUpdate
             }
             
             typ = GenerateplTypes(panel, srv, plx);
-            srv = typ;
-            del = srv;
+            del = srv + 40;
             ter = (int)plOptions.height;
-            WriteLog("typ = " +  typ + " srv = " +  srv + " del = " +  del);
+            //WriteLog("typ = " +  typ + " srv = " +  srv + " del = " +  del);
 
             typ = GenerateplRoads(panel, typ, plx); //Updates
             GenerateplDelete(panel, del, plx);      //Deletes
             GenerateplServices(panel, srv, plx);    //Services
             GenerateplTerrain(panel, ter, plx);     //Terrain
+            GenerateplDistricts(panel, ter, plx);     //Districts
 
             GenerateRoadPanels(panel, ref plBasic, ref plToBasic, fromBasic, toBasic, m_basic, "Basic", typ, plx);
             GenerateRoadPanels(panel, ref plHighway, ref plToHighway, fromHighway, toHighway, m_highway, "Highway", typ, plx);
@@ -506,7 +543,7 @@ namespace AnotherRoadUpdate
             plOptions.tooltip = "Select the type of updates to perform.";
 
             //This was the title, indent the rest
-            lSelectable = addUILabel(plOptions, ply, plx, m_updatetool + m_unavailable, true);
+            lSelectable = addLabel(plOptions, ply, plx, m_updatetool + m_unavailable, true);
 
             int cb = 0;
             foreach (string s in m_options)
@@ -520,7 +557,7 @@ namespace AnotherRoadUpdate
                 cb += 1;
             }
 
-            lInformation = addUILabel(plOptions,  ply + 45, 1, "Details from changes.", true);
+            lInformation = addLabel(plOptions,  ply + 45, 1, "Details from changes.", true);
 
             //set the panal size (two rows, 50)
             plOptions.size = new Vector2(panel.width, ply + 65);
@@ -539,7 +576,7 @@ namespace AnotherRoadUpdate
             plTypes.isVisible = true;
             plTypes.tooltip = "Select the line types to modify";
 
-            addUILabel(plTypes, 1, 1, "Select the line types to modify", true);
+            addLabel(plTypes, 1, 1, "Select the line types to modify", true);
             int x = 5;
             int y = 20;
             int step = 0;
@@ -582,13 +619,13 @@ namespace AnotherRoadUpdate
                 {
                     try
                     {
-                        addUILabel(plRoads, y, x1 - 5, "From ==> ", true);
-                        addUILabel(plRoads, y, x2 - 5, "To ==> ", true);
+                        addLabel(plRoads, y, x1 - 5, "From ==> ", true);
+                        addLabel(plRoads, y, x2 - 5, "To ==> ", true);
                         y += 20;
                     }
                     catch (Exception ex)
                     {
-                       WriteLog("error in GenerateplTypes: " + ex.Message + " stack:: " + ex.StackTrace, true);
+                        WriteError("Error in GenerateplTypes: ", ex);
                     }
                 }
                 else
@@ -636,19 +673,19 @@ namespace AnotherRoadUpdate
             int y = 6;
 
             //load the bulldoze road type options
-            addUILabel(plDelete, y - 5, 5, "Select your delete options.", true);
+            addLabel(plDelete, y - 5, 5, "Select your delete options.", true);
 
             y += 15;
             foreach (string s in m_deletes)
             {
                 if (s == "Label Lines")
                 {
-                    lLines = addUILabel(plDelete, y, 10, "Lines", true);
+                    lLines = addLabel(plDelete, y, 10, "Lines", true);
                     y += 20;
                 }
                 else if (s == "Label Properties")
                 {
-                    lProperties = addUILabel(plDelete, y, 10, "Properties", true);
+                    lProperties = addLabel(plDelete, y, 10, "Properties", true);
                     y += 20;
                 }
                 else
@@ -693,7 +730,7 @@ namespace AnotherRoadUpdate
                 string t = "These items will be toggled On or Off.";
                 if (s.StartsWith("Label "))
                 {
-                    addUILabel(plServices, 1, 5, s.Replace("Label ", ""), true);
+                    addLabel(plServices, 1, 5, s.Replace("Label ", ""), true);
                     t = "Check to turn on services, unchecked to turn them off.";
                     cbToggle = addCheckbox(plServices, y, 10, "Check to turn Sevices On, Uncheck for Off.", t, true);
                 }
@@ -722,9 +759,9 @@ namespace AnotherRoadUpdate
             plTerrain.isVisible = false;
             plTerrain.tooltip = "Select or enter the height desired.";
 
-            addUILabel(plTerrain, 1, 1, "Enter a value into the text box to set the height", true);
+            addLabel(plTerrain, 1, 1, "Enter a value into the text box to set the height", true);
 
-            tfTerrainHeight = AddTextBox(plTerrain, "TerrainHeight", "0,00", 20, 1, 120, 25, "Use values between 2000 and 0.0", true, true);
+            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", 20, 1, 120, 25, "Use values between 2000 and 0.0", true, true);
             tfTerrainHeight.eventTextChanged += TerrainHeight_eventTextChanged;
 
             //Add the dropdown
@@ -738,6 +775,24 @@ namespace AnotherRoadUpdate
             ddHeights.eventSelectedIndexChanged += ddHeights_eventSelectedIndexChanged;
 
             //WriteLog("Leaving GenerateplTerrain");
+        }
+
+        private void GenerateplDistricts(UIPanel panel, int ply, int plx)
+        {
+            WriteLog("Entering GenerateplDistricts");
+
+            //Show the road type option
+            plDistricts = panel.AddUIComponent<UIPanel>();
+            plDistricts.relativePosition = new Vector3(1, ply);
+            plDistricts.isVisible = false;
+            plDistricts.tooltip = "Select an area to update the district.";
+
+            addLabel(plDistricts, 1, 1, "Toggle the check box to create or delete the district. (Undo is not available)", true);
+            addLabel(plDistricts, 20, 1, "Add to an existing District by starting the selection within the district.", true);
+
+            UICheckBox cb = addCheckbox(plDistricts, 40, 15, "Checked for Create (Update), unchecked for delete", "Check to create a district, uncheck to delete", true);
+
+            WriteLog("Leaving GenerateplDistricts");
         }
 
         private void GenerateRoadPanels(UIPanel panel, ref UIPanel pFrom, ref UIPanel pTo, List<UICheckBox> lFrom, List<UICheckBox> lTo, string[] road, string name, int ply, int plx)
@@ -756,8 +811,8 @@ namespace AnotherRoadUpdate
             pTo.isVisible = false;
             pTo.tooltip = "Select the type of road to convert to.";
 
-            addUILabel(pFrom, 1, 5, pFrom.tooltip, true);
-            addUILabel(pTo, 1, 5, pTo.tooltip, true);
+            addLabel(pFrom, 1, 5, pFrom.tooltip, true);
+            addLabel(pTo, 1, 5, pTo.tooltip, true);
 
             int cb = 0;
             int y = 22;
@@ -781,7 +836,7 @@ namespace AnotherRoadUpdate
 
         #region "Adding Controls"
 
-        private UILabel addUILabel(UIPanel panel, int yPos, int xPos, string text, bool hidden)
+        private UILabel addLabel(UIPanel panel, int yPos, int xPos, string text, bool hidden)
         {
             //WriteLog("Entering addUILabel");
             UILabel lb = panel.AddUIComponent<UILabel>();
@@ -820,7 +875,8 @@ namespace AnotherRoadUpdate
             checkSprite.spriteName = "check-checked";
 
             cb.checkedBoxObject = checkSprite;
-
+            cb.disabledColor = new Color(127.0f / 255.0f, 127.0f / 255.0f, 127.0f / 255.0f, 1.0f);
+            label.disabledColor = new Color(127.0f / 255.0f, 127.0f / 255.0f, 127.0f / 255.0f, 1.0f);
             cb.tooltip = tooltip;
             label.tooltip = cb.tooltip;
             cb.isChecked = false;
@@ -876,7 +932,7 @@ namespace AnotherRoadUpdate
             return dd;
         }
 
-        public UITextField AddTextBox(UIPanel panel, string name, string text, int y, int x, int width, int height, string tooltip, bool numeric, bool allowFloats)
+        private UITextField addTextBox(UIPanel panel, string name, string text, int y, int x, int width, int height, string tooltip, bool numeric, bool allowFloats)
         {
             UITextField tf = panel.AddUIComponent<UITextField>();
 
@@ -910,6 +966,31 @@ namespace AnotherRoadUpdate
             return tf;
         }
         
+        private UIButton addButton(UIPanel panel, string text, string tooltip, int y, int x, int w, int h)
+        {
+            UIButton bt = panel.AddUIComponent<UIButton>();
+            bt.relativePosition += new Vector3(x, y);
+            bt.name = text.Replace(" ", "_");
+            bt.text = text;
+            bt.tooltip = tooltip;
+            bt.textScale = 0.8f;
+            bt.width = w;
+            bt.height = h;
+            bt.normalBgSprite = "ButtonMenu";
+            bt.disabledBgSprite = "ButtonMenuDisabled";
+            bt.hoveredBgSprite = "ButtonMenuHovered";
+            bt.focusedBgSprite = "ButtonMenu";
+            bt.pressedBgSprite = "ButtonMenuPressed";
+            bt.textColor = new Color32(255, 255, 255, 255);
+            bt.disabledTextColor = new Color32(7, 7, 7, 255);
+            bt.hoveredTextColor = new Color32(255, 255, 255, 255);
+            bt.focusedTextColor = new Color32(255, 255, 255, 255);
+            bt.pressedTextColor = new Color32(30, 30, 44, 255);
+
+            WriteLog("Leaving addButton: " + text + " location: " + bt.relativePosition + "main HeightxWidth: " + panel.height + "x" + panel.width);
+            return bt;
+        }
+
         #endregion
 
         #endregion
@@ -964,6 +1045,17 @@ namespace AnotherRoadUpdate
             us.Toggle = cbToggle.isChecked;
             us.TerrainHeight = m_terrainHeight;
 
+            us.HealthCare = services[(int)dl.HealthCare].isChecked;
+            us.PoliceDepartment = services[(int)dl.PoliceDepartment].isChecked;
+            us.FireDepartment = services[(int)dl.FireDepartment].isChecked;
+            us.PublicTransport = services[(int)dl.PublicTransport].isChecked;
+            us.Education = services[(int)dl.Education].isChecked;
+            us.Electricity = services[(int)dl.Electricity].isChecked;
+            us.Water = services[(int)dl.Water].isChecked;
+            us.Garbage = services[(int)dl.Garbage].isChecked;
+            us.Beautification = services[(int)dl.Beautification].isChecked;
+            us.Monument = services[(int)dl.Monument].isChecked;
+
             us.Save();
 
             //WriteLog("Leaving SetSettings types[(int)tp.Ground].isChecked: " + types[(int)tp.Ground].isChecked);
@@ -1014,6 +1106,23 @@ namespace AnotherRoadUpdate
                 deletes[(int)p.Buildings].isChecked = us.Buildings;
                 deletes[(int)p.Trees].isChecked = us.Trees;
                 deletes[(int)p.Props].isChecked = us.Props;
+                
+                if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
+                {
+                    if (us.Services == true)
+                    {
+                        us.Terrain = true;
+                        us.Services = false;
+                    }
+                }
+                else
+                {
+                    if (us.Terrain == true)
+                    {
+                        us.Terrain = false;
+                        us.Services = true;
+                    }
+                }
 
                 loc  = "Services";
                 options[(int)ops.Services].isChecked = us.Services;
@@ -1027,10 +1136,22 @@ namespace AnotherRoadUpdate
                 cbToggle.isChecked = us.Toggle;
                 loc = "TerrainHeight";
                 m_terrainHeight = (float)us.TerrainHeight;
+
+                services[(int)dl.HealthCare].isChecked = us.HealthCare;
+                services[(int)dl.PoliceDepartment].isChecked = us.PoliceDepartment;
+                services[(int)dl.FireDepartment].isChecked = us.FireDepartment;
+                services[(int)dl.PublicTransport].isChecked = us.PublicTransport;
+                services[(int)dl.Education].isChecked = us.Education;
+                services[(int)dl.Electricity].isChecked = us.Electricity;
+                services[(int)dl.Water].isChecked = us.Water;
+                services[(int)dl.Garbage].isChecked = us.Garbage;
+                services[(int)dl.Beautification].isChecked = us.Beautification;
+                services[(int)dl.Monument].isChecked = us.Monument;
+
             }
             catch (Exception ex)
             {
-                WriteLog("GetSettings loc: " + loc + " deltypes.Count: " + deletes.Count + " Exception: " + ex.Message, true);
+                WriteError("Error in GetSettings loc: " + loc + " deltypes.Count: " + deletes.Count, ex);
             }
             //WriteLog("Leaving GetSettings types[(int)tp.Ground].isChecked: " + types[(int)tp.Ground].isChecked);
             m_settings = false;
@@ -1068,7 +1189,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("SetServicesEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace, true);
+                WriteError("Error in SetServicesEnabled Exception: ", ex);
             }
 
             //WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
@@ -1097,10 +1218,37 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("SetTerrainEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace, true);
+                WriteError("Error in SetTerrainEnabled Exception: ", ex);
             }
 
-            WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
+            //WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
+        }
+
+        private void SetDistrictsEnabled()
+        {
+            WriteLog("Entering: SetDistrictsEnabled m_selectable: " + m_selectable);
+
+            try
+            {
+                if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
+                {
+                    plDistricts.Disable();
+                    m_selectable = false;
+                    lSelectable.text = m_updatetool + m_unavailable;
+                }
+                else
+                {
+                    plDistricts.Enable();
+                    m_selectable = true;
+                    lSelectable.text = m_updatetool + m_available;
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteError("Error in SetDistrictsEnabled Exception: ", ex);
+            }
+
+            WriteLog("Leaving: SetDistrictsEnabled m_selectable: " + m_selectable);
         }
 
         private void SetUpdateEnabled()
@@ -1173,7 +1321,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("SetUpdateEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace, true);
+                WriteError("Error in Error in SetUpdateEnabled ", ex);
             }
 
             //WriteLog("Leaving: SetUpdateEnabled m_selectable: " + m_selectable);
@@ -1213,7 +1361,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("SetDeleteEnabled Exception: " + ex.Message + " Stack:: " + ex.StackTrace, true);
+                WriteError("Error in SetDeleteEnabled Exception: ", ex);
             }
             //WriteLog("Leaving SetDeleteEnabled selectable is: " + m_selectable);
         }
@@ -1278,6 +1426,7 @@ namespace AnotherRoadUpdate
             plToLarge.isVisible = show;
             plToMedium.isVisible = show;
             plToOneway.isVisible = show;
+            plDistricts.isVisible = show;
 
             SetUpdateEnabled();
         }
@@ -1367,7 +1516,7 @@ namespace AnotherRoadUpdate
             }
             catch (FormatException e)
             {
-                WriteLog(e.Message);
+                WriteError("Error in isNumeric: ", e);
             }
             return results;
         }
@@ -1376,18 +1525,26 @@ namespace AnotherRoadUpdate
 
         #region "Event Handlers"
 
+        private void btHide_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            WriteLog("Entering btHide_eventClick: " + plMain.isVisible);
+            this.OnDisable();
+            plMain.isVisible = false;
+            this.enabled = false;
+            WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
+        }
+
         private void Label_eventClicked(UIComponent component, UIMouseEventParameter eventParam)
         {
-            WriteLog("Entering Label_eventClicked");
+            //WriteLog("Entering Label_eventClicked");
             UICheckBox cb = (UICheckBox)component.parent;
             cb.isChecked = !cb.isChecked;
-            WriteLog("Leaving Label_eventClicked");
+            //WriteLog("Leaving Label_eventClicked");
         }
 
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
         {
-            string log = "Entering Settings Panel eventTextChanged";
-            WriteLog(log);
+            //WriteLog("Entering Settings Panel eventTextChanged");
 
             UITextField tf = (UITextField)component;
             tf.text = Regex.Replace(tf.text, "[^0-9\\.]", "");
@@ -1401,9 +1558,8 @@ namespace AnotherRoadUpdate
                 return;
             if ( val < 0) { val = 0; }
             if (val > 2000) { val = 2000; }
-
-            log = "Settings Panel eventTextChanged - setting val: " + val;
-            WriteLog(log);
+            
+            //WriteLog("Settings Panel eventTextChanged - setting val: " + val);
             try
             {
                 m_terrainHeight = (float)val;
@@ -1411,17 +1567,17 @@ namespace AnotherRoadUpdate
             }
             catch (Exception e)
             {
-                WriteLog(e.Message);
+                WriteError(e.Message, e);
             }
-            log = "Leaving SettingsPanel eventTextChanged - val: : " + val + ", Value: " + tf.text + ": ";
-            WriteLog(log + m_terrainHeight);
+
+            //WriteLog("Leaving SettingsPanel eventTextChanged - val: : " + val + ", Value: " + tf.text + ": " + m_terrainHeight);
         }
 
         private void ddHeights_eventSelectedIndexChanged(UIComponent component, int value)
         {
-            WriteLog("ddHeights.items[value]: " + ddHeights.items[value]);
+            //WriteLog("ddHeights.items[value]: " + ddHeights.items[value]);
             tfTerrainHeight.text = ddHeights.items[value];
-            WriteLog("tfTerrainHeight.text: " + tfTerrainHeight.text);
+            //WriteLog("tfTerrainHeight.text: " + tfTerrainHeight.text);
         }
 
         private void serviceDropdown_eventSelectedIndexChanged(UIComponent component, int value)
@@ -1478,7 +1634,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("btHelp_eventDoubleClick Exception: " + ex.Message + " Stack: " + ex.StackTrace, true);
+                WriteError("Error in btHelp_eventDoubleClick ", ex);
             }
 
             //WriteLog("Leaving btHelp_eventDoubleClick");
@@ -1537,6 +1693,7 @@ namespace AnotherRoadUpdate
                     options[(int)ops.Deletes].isChecked = false;
                     options[(int)ops.Services].isChecked = false;
                     options[(int)ops.Terrain].isChecked = false;
+                    options[(int)ops.Districts].isChecked = false;
                     plTypes.isVisible = true;
                     plRoads.isVisible = true;
                     ShowRoads();
@@ -1546,6 +1703,7 @@ namespace AnotherRoadUpdate
                     options[(int)ops.Updates].isChecked = false;
                     options[(int)ops.Services].isChecked = false;
                     options[(int)ops.Terrain].isChecked = false;
+                    options[(int)ops.Districts].isChecked = false;
                     plTypes.isVisible = true;
                     plDelete.isVisible = true;
                     SetDeleteEnabled();
@@ -1555,6 +1713,7 @@ namespace AnotherRoadUpdate
                     options[(int)ops.Updates].isChecked = false;
                     options[(int)ops.Deletes].isChecked = false;
                     options[(int)ops.Terrain].isChecked = false;
+                    options[(int)ops.Districts].isChecked = false;
                     plTypes.isVisible = false;
                     plServices.isVisible = true;
                     SetServicesEnabled();
@@ -1564,9 +1723,20 @@ namespace AnotherRoadUpdate
                     options[(int)ops.Updates].isChecked = false;
                     options[(int)ops.Deletes].isChecked = false;
                     options[(int)ops.Services].isChecked = false;
+                    options[(int)ops.Districts].isChecked = false;
                     plTypes.isVisible = false;
                     plTerrain.isVisible = true;
                     SetTerrainEnabled();
+                }
+                else if (c.text == "Districts")
+                {
+                    options[(int)ops.Updates].isChecked = false;
+                    options[(int)ops.Deletes].isChecked = false;
+                    options[(int)ops.Services].isChecked = false;
+                    options[(int)ops.Terrain].isChecked = false;
+                    plTypes.isVisible = false;
+                    plDistricts.isVisible = true;
+                    SetDistrictsEnabled();
                 }
             }
             m_updates = false;
@@ -1594,7 +1764,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("Exception in FromTypes_eventCheckChanged loc: " + loc + " Message:: " + ex.Message + " Stack::: " + ex.StackTrace, true);
+                WriteError("Error in FromTypes_eventCheckChanged loc: " + loc + ".", ex);
             }
 
             //uncheck any others
@@ -1638,7 +1808,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("Exception in ToTypes_eventCheckChanged loc: " + loc + " Message:: " + ex.Message + " Stack::: " + ex.StackTrace, true);
+                WriteError("Error in ToTypes_eventCheckChanged loc: " + loc + ".", ex);
             }
 
             //uncheck any others
@@ -1716,11 +1886,12 @@ namespace AnotherRoadUpdate
         
         private void Button_Clicked(UIComponent component, UIMouseEventParameter eventParam)
         {
-            //WriteLog("Entering Button_Clicked: " + plMain.isVisible);
+            WriteLog("Entering Button_Clicked: " + plMain.isVisible);
             if (plMain.isVisible == true)
             {
-                this.enabled = false;
+                this.OnDisable();
                 plMain.isVisible = false;
+                this.enabled = false;
             }
             else
             {
@@ -1728,7 +1899,7 @@ namespace AnotherRoadUpdate
                 plMain.isVisible = true;
                 mainButton.enabled = true;
             }
-            //WriteLog("Leaving Button_Clicked: " + plMain.isVisible);
+            WriteLog("Leaving Button_Clicked: " + plMain.isVisible);
         }
 
         #endregion
@@ -1870,138 +2041,12 @@ namespace AnotherRoadUpdate
 
             }
         }
-        
+
         #endregion
 
         #region "Updates, Deletes, Toggles, Oh my!"
 
-        private int ConvertSegments(string convertTo, string convertFrom, bool test, out int totalCost, out ToolBase.ToolErrors errors)
-        {
-            int num = 0;
-            totalCost = 0;
-            int tempCost = 0;
-            int issues = 0;
-            errors = 0;
-
-            StringWriter sw = new StringWriter();
-            sw.WriteLine(String.Format("Entering ConvertObjects at {0}.", DateTime.Now.TimeOfDay));
-
-            NetInfo info = PrefabCollection<NetInfo>.FindLoaded(convertTo);
-
-            if (info == null)
-            {
-                sw.WriteLine("Could not find the object: " + convertTo + ", aborting.");
-                return num;
-            }
-
-            NetSegment[] buffer = Singleton<NetManager>.instance.m_segments.m_buffer;
-
-            //sw.WriteLine("Filling Singleton<NetManager>.instance.m_segments.m_buffer. Found: " + buffer.Length);
-
-            for (int i = 0; i < buffer.Length - 1; i++)
-            {
-                NetSegment segment = buffer[i];
-
-                //Validate in selected area
-                if (segment.Info == null)
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is Null.", segment.Info.name));
-                }
-                else if (!segment.Info.name.Contains(convertFrom))
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is not a converting item.", segment.Info.name));
-                }
-                else if (ValidateSelectedArea(segment) == false)
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name));
-                }
-                else
-                {
-                    bool skip = false;
-                    //Are we not equal
-                    bool Curved = AngleBetween(segment.m_startDirection, segment.m_endDirection, 1);                  
-
-                    string seg = segment.Info.name;
-
-                    NetTool.ControlPoint point;
-                    NetTool.ControlPoint point2;
-                    NetTool.ControlPoint point3;
-
-                    bool Bridge = seg.Contains("Bridge ") == true;
-                    bool Slope = seg.Contains("Slope ") == true;
-                    bool Tunnel = seg.Contains("Tunnel ") == true;
-                    bool Ground = types[(int)tp.Ground].isChecked;
-                    //sw.WriteLine(String.Format("Ground: {0}; Bridge: {1}; Slope: {2}; Tunnel: {3}; Curved: {4}", Ground, Bridge, Slope, Tunnel, Curved));
-
-                    // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
-                    if (Ground == false && (Bridge || Slope || Tunnel || Curved)) { skip = true; sw.WriteLine("Ground Skip " + segment.Info.name); }
-                    else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; sw.WriteLine("Tunnel Skip " + segment.Info.name); }
-                    else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; sw.WriteLine("Bridge Skip " + segment.Info.name); }
-                    else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; sw.WriteLine("Slope Skip " + segment.Info.name); }
-                    else if (types[(int)tp.Curve].isChecked == false && Curved) { skip = true; sw.WriteLine("Curved Skip " + segment.Info.name + " cornerAngleEnd: " + segment.m_cornerAngleEnd + " cornerAngleStart: " + segment.m_cornerAngleStart); }
-
-                    //sw.WriteLine(segment.Info.name + " converting to " + convertTo + ".");
-                    //sw.WriteLine("About to call GetSegmentControlPoints.\n");
-
-                    GetSegmentControlPoints(i, out point, out point2, out point3);
-                    bool visualize = false;
-                    bool autoFix = true;
-                    bool needMoney = true;
-                    bool invert = false;
-                    ushort num3 = 0;
-                    ushort num4 = 0;
-                    int num5 = 0;
-                    int num6 = 0;
-
-                    //test for bad index
-                    if ((point.m_position == new Vector3()) && (point2.m_position == new Vector3()) && (point3.m_position == new Vector3())) { sw.WriteLine("Skipping segment: " + seg + " Point: " + point + "Point: " + point2 + "Point: " + point3); }
-                    else if (skip == true) { sw.WriteLine("Skipping segment: " + seg); }
-                    else
-                    {
-                        try
-                        {
-                            //sw.WriteLine("About to call NetTool.Create test mode.\n");
-                            //Validate in area and other errors (no money!)
-                            errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsSimulation, 0x3e8, true, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
-                            //sw.WriteLine("Test Cost: " + num5);
-                            tempCost = num5;
-                        }
-                        catch (Exception ex)
-                        {
-                            WriteLog("Error testing convert of: " + segment.Info.name + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace, false, true);
-                        }
-                        if (errors == 0)
-                        {
-                            try
-                            {
-                                errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
-                                num++;
-                                totalCost += tempCost;
-                            }
-                            catch (Exception ex)
-                            {
-                                string message = "Error converting: " + segment.Info.name + " errors: " + errors + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace;
-                                string lenght = "Left Segment Lenght: " + Math.Abs((float)(segment.m_startLeftSegment - segment.m_endLeftSegment)).ToString();
-                                lenght += " Right Segment Lenght: " + Math.Abs((float)(segment.m_startRightSegment - segment.m_endRightSegment)).ToString();
-                                sw.WriteLine(lenght);
-                                WriteLog(message, false, true);
-                                sw.WriteLine(message);
-                                issues += 1;
-                            }
-                        }
-                        else
-                        {
-                            sw.WriteLine("Error test convert: " + segment.Info.name + " to " + convertTo + ". Message22: " + errors);
-                            issues += 1;
-                        }
-                    }
-                }
-            }
-            lInformation.text = "Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues;
-            WriteLog("" + sw);
-            UIView.RefreshAll(true);
-            return num;
-        }
+        #region "Apply Helpers"
 
         private bool AngleBetween(Vector3 deg1, Vector3 deg2, int compare)
         {
@@ -2032,109 +2077,7 @@ namespace AnotherRoadUpdate
 
             return result;
         }
-
-        protected void DelateLanes()
-        {
-            segmentsToDelete = new List<ushort>();
-
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            int gridMinX = Mathf.Max((int)((minX - 16f) / 64f + 135f), 0);
-            int gridMinZ = Mathf.Max((int)((minZ - 16f) / 64f + 135f), 0);
-            int gridMaxX = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
-            int gridMaxZ = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
-
-            //string xy = "Values gridMinX, gridMinZ, gridMaxX, gridMaxY: " + gridMinX + ", " + gridMinZ + ", " + gridMaxX + ", " + gridMaxZ;
-            //WriteLog("About to loop: " + xy);
-
-            for (int i = gridMinZ; i <= gridMaxZ; i++)
-            {
-                for (int j = gridMinX; j <= gridMaxX; j++)
-                {
-                    try
-                    {
-                        //WriteLog("In the for loops ");
-                        ushort num5 = NetManager.instance.m_segmentGrid[i * 270 + j];
-                        int num6 = 0;
-                        bool skip = false;
-                        while (num5 != 0u)
-                        {
-                            //WriteLog("In the while ");
-                            var segment = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)];
-
-                            bool curved = (segment.m_cornerAngleEnd != segment.m_cornerAngleStart);
-
-                            //WriteLog("Segment name: " + segment.Info.name + " Service :" + segment.Info.GetService());
-                            //WriteLog("m_startDirection: " + segment.m_startDirection + " m_endDirection: " + segment.m_endDirection);
-                            //WriteLog("m_cornerAngleEnd: " + segment.m_cornerAngleEnd + " m_cornerAngleStart: " + segment.m_cornerAngleStart);
-                            //WriteLog("m_startLeftSegment: " + segment.m_startLeftSegment + " m_startRightSegment: " + segment.m_startRightSegment);
-                            //WriteLog("m_endLeftSegment: " + segment.m_endRightSegment + " m_endRightSegment: " + segment.m_endRightSegment);
-
-                            Vector3 position = segment.m_middlePosition;
-                            float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
-
-                            if (positionDiff < 0f)
-                            {
-                                string seg = segment.Info.name;
-                                // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
-                                if (types[(int)tp.Ground].isChecked == false && (seg.Contains("Bridge ") == false || seg.Contains("Slope ") == false || seg.Contains("Tunnel ") == false)) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if ((types[(int)tp.Curve].isChecked == false && curved)) { skip = true; WriteLog("Skip " + segment.Info.name + " cornerAngleEnd: " + segment.m_cornerAngleEnd + " cornerAngleStart: " + segment.m_cornerAngleStart); }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Pedestrian ")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Bicycle ")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Tram ")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Metro ")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Roads].isChecked == false && seg.Contains("Road")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Railroads].isChecked == false && seg.Contains("Train")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Highways].isChecked == false && seg.Contains("Highway")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.PowerLines].isChecked == false && seg.Contains("Power")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.WaterPipes].isChecked == false && seg.Contains("Water Pipe")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.HeatPipes].isChecked == false && seg.Contains("Heating Pipe")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Airplanes].isChecked == false && seg.Contains("Airplane")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Ship")) { skip = true; WriteLog("Skip " + segment.Info.name); }
-
-                                if (skip == false)
-                                {
-                                    segmentsToDelete.Add(num5);
-                                    //WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
-                                }
-                                else
-                                    WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
-                            }
-                            num5 = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)].m_nextGridSegment;
-                            if (++num6 >= 262144)
-                            {
-                                CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                                break;
-                            }
-                        }   //while (num5 != 0u)
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteLog("DeleteLanes segmentsToDelete (segment loop) Exception: " + ex.Message + " Stack: " + ex.StackTrace, true);
-                    }
-                }   //for (int j = gridMinX; j <= gridMaxX; j++)
-            }   //for (int i = gridMinZ; i <= gridMaxZ; i++)
-
-            foreach (var segment in segmentsToDelete)
-            {
-                try
-                {
-                    SimulationManager.instance.AddAction(this.ReleaseSegment(segment));
-                }
-                catch (Exception ex)
-                {
-                    WriteLog("DeleteLanes segmentsToDelete (Delete loop) Exception: " + ex.Message + " Stack: " + ex.StackTrace, true);
-                }
-            }
-            NetManager.instance.m_nodesUpdated = true;
-        }
-
+        
         private IEnumerator ReleaseSegment(ushort segment)
         {
             ToolBase.ToolErrors errors = ToolErrors.None;
@@ -2318,6 +2261,24 @@ namespace AnotherRoadUpdate
             return false;
         }
 
+        private bool ValidateSelectedArea(Building bd)
+        {
+            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
+            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
+            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
+            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
+
+            Vector3 position = bd.m_position;
+
+            float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
+
+            if (positionDiff < 0f)
+            {
+                return true;
+            }
+            return false;
+        }
+
         private void GetSegmentControlPoints(int segmentIndex, out NetTool.ControlPoint startPoint, out NetTool.ControlPoint middlePoint, out NetTool.ControlPoint endPoint)
         {
             //WriteLog("Entering GetSegmentControlPoints");
@@ -2357,45 +2318,6 @@ namespace AnotherRoadUpdate
             //WriteLog("Leaving GetSegmentControlPoints");
         }
 
-        private void ApplyServices()
-        {
-            //WriteLog("Entering ApplyServices: Code not yet implamented.");
-            Building[] buffer = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
-
-            bool toggle = cbToggle.isChecked;
-
-            for (int i = 0; i < buffer.Length; i++)
-            {
-                Building bd = buffer[i];
-
-                if (bd.Info.m_class.m_service == ItemClass.Service.FireDepartment)
-                {
-                    WriteLog("Building Name: " + bd.Info.gameObject.name + " GetName: " + GetName(bd));
-                    WriteLog("BuildingAI Name: " + bd.Info.m_buildingAI.name);
-                    WriteLog("Building.Info.GetLocalizedTitle : " + bd.Info.GetLocalizedTitle());
-
-                    string bn = bd.Info.gameObject.name;
-                    string onoff = "Off";
-                    byte rate = 0;
-
-                    if (toggle == true) { onoff = "On"; rate = 100; }
-                    
-                    WriteLog("Setting services to " + onoff + ". bd.m_flags was: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
-                    if (bd.m_flags.IsFlagSet(Building.Flags.Active) != toggle)
-                    {
-                        WriteLog("About to toggle: ");
-                        bd.m_flags ^= Building.Flags.Active;
-                        bd.m_productionRate = rate;
-                    }
-                    bd.Info.name = "MyNameChanged";
-
-                    WriteLog("Setting services to " + onoff + ". bd.m_flags is: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
-                }
-                buffer[i] = bd;
-            }
-            //WriteLog("Leaving ApplyServices: Code not yet implamented.");
-        }
-
         private string GetName(Building bd)
         {
             InstanceID id = new InstanceID();
@@ -2403,6 +2325,346 @@ namespace AnotherRoadUpdate
             return Singleton<InstanceManager>.instance.GetName(id);
         }
 
+        #endregion
+
+        #region "Apply Changes"
+
+        private void ApplyDistrictsChange()
+        {
+            //Set up the max area
+            int minX;
+            int minZ;
+            int maxX;
+            int maxZ;
+
+            GetMinMax(out minX, out minZ, out maxX, out maxZ);
+            string log = "ApplyBrush - GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
+            //WriteLog(log);
+
+            //load the district buffer
+            DistrictManager dm = Singleton<DistrictManager>.instance;
+            District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
+
+            foreach (District d in buffer)
+            {
+                //we need to see if we are in any existing districts
+                //we need to make sure that this was not a mouse click event
+                if (maxZ - minZ >= 1 && maxX - minX >= 1)
+                {
+                    //we need to update the area in 120 point sections
+                    for (int i = minZ; i <= maxZ; i++)
+                    {
+                        for (int j = minX; j <= maxX; j++)
+                        {
+                            byte id;
+                            Singleton<DistrictManager>.instance.CreateDistrict(out id);
+                            Singleton<DistrictManager>.instance.AreaModified(minX, minZ, maxX, maxZ, true);
+
+                        }
+                        //make sure we exit the loop
+                        if (i + 1 >= maxZ)
+                            break;
+                        i += 119;
+                        if (i > maxZ)
+                            i = maxZ - 1;
+                    }
+
+                    string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
+                    log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
+                    //WriteLog(log);
+                }
+
+            }
+        }
+
+        private int ConvertSegments(string convertTo, string convertFrom, bool test, out int totalCost, out ToolErrors errors)
+        {
+            int num = 0;
+            totalCost = 0;
+            int tempCost = 0;
+            int issues = 0;
+            errors = 0;
+
+            StringWriter sw = new StringWriter();
+            //sw.WriteLine(String.Format("Entering ConvertObjects at {0}.", DateTime.Now.TimeOfDay));
+
+            NetInfo info = PrefabCollection<NetInfo>.FindLoaded(convertTo);
+
+            if (info == null)
+            {
+                //sw.WriteLine("Could not find the object: " + convertTo + ", aborting.");
+                return num;
+            }
+
+            NetSegment[] buffer = Singleton<NetManager>.instance.m_segments.m_buffer;
+
+            //sw.WriteLine("Filling Singleton<NetManager>.instance.m_segments.m_buffer. Found: " + buffer.Length);
+
+            for (int i = 0; i < buffer.Length - 1; i++)
+            {
+                NetSegment segment = buffer[i];
+
+                //Validate in selected area
+                if (segment.Info == null)
+                {
+                    //sw.WriteLine(String.Format("Segment {0} is Null.", segment.Info.name));
+                }
+                else if (!segment.Info.name.Contains(convertFrom))
+                {
+                    //sw.WriteLine(String.Format("Segment {0} is not a converting item.", segment.Info.name));
+                }
+                else if (ValidateSelectedArea(segment) == false)
+                {
+                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name));
+                }
+                else
+                {
+                    bool skip = false;
+                    //Are we not equal
+                    bool Curved = AngleBetween(segment.m_startDirection, segment.m_endDirection, 1);
+
+                    string seg = segment.Info.name;
+
+                    NetTool.ControlPoint point;
+                    NetTool.ControlPoint point2;
+                    NetTool.ControlPoint point3;
+
+                    bool Bridge = seg.Contains("Bridge ") == true;
+                    bool Slope = seg.Contains("Slope ") == true;
+                    bool Tunnel = seg.Contains("Tunnel ") == true;
+                    bool Ground = types[(int)tp.Ground].isChecked;
+                    //sw.WriteLine(String.Format("Ground: {0}; Bridge: {1}; Slope: {2}; Tunnel: {3}; Curved: {4}", Ground, Bridge, Slope, Tunnel, Curved));
+
+                    // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
+                    if (Ground == false && (Bridge || Slope || Tunnel || Curved)) { skip = true; }
+                    else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; }
+                    else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; }
+                    else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; }
+                    else if (types[(int)tp.Curve].isChecked == false && Curved) { skip = true; }
+
+                    //sw.WriteLine(segment.Info.name + " converting to " + convertTo + ".");
+                    //sw.WriteLine("About to call GetSegmentControlPoints.\n");
+
+                    GetSegmentControlPoints(i, out point, out point2, out point3);
+                    bool visualize = false;
+                    bool autoFix = true;
+                    bool needMoney = true;
+                    bool invert = false;
+                    ushort num3 = 0;
+                    ushort num4 = 0;
+                    int num5 = 0;
+                    int num6 = 0;
+
+                    //test for bad index
+                    if ((point.m_position == new Vector3()) && (point2.m_position == new Vector3()) && (point3.m_position == new Vector3())) { }
+                    else if (skip == true) { }
+                    else
+                    {
+                        try
+                        {
+                            //sw.WriteLine("About to call NetTool.Create test mode.\n");
+                            //Validate in area and other errors (no money!)
+                            errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsSimulation, 0x3e8, true, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
+                            //sw.WriteLine("Test Cost: " + num5);
+                            tempCost = num5;
+                        }
+                        catch (Exception ex)
+                        {
+                            WriteError("Error testing convert of: " + segment.Info.name + " to " + convertTo + ".", ex);
+                        }
+                        if (errors == 0)
+                        {
+                            try
+                            {
+                                errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
+                                num++;
+                                totalCost += tempCost;
+                            }
+                            catch (Exception ex)
+                            {
+                                string message = "Error converting: " + segment.Info.name + " errors: " + errors + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace;
+                                string lenght = "Left Segment Lenght: " + Math.Abs((float)(segment.m_startLeftSegment - segment.m_endLeftSegment)).ToString();
+                                lenght += " Right Segment Lenght: " + Math.Abs((float)(segment.m_startRightSegment - segment.m_endRightSegment)).ToString();
+                                //sw.WriteLine(lenght);
+                                WriteError(message, ex);
+                                //sw.WriteLine(message);
+                                issues += 1;
+                            }
+                        }
+                        else
+                        {
+                            //sw.WriteLine("Error test convert: " + segment.Info.name + " to " + convertTo + ". Message22: " + errors);
+                            issues += 1;
+                        }
+                    }
+                }
+            }
+            lInformation.text = "Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues;
+            //WriteLog("" + sw);
+            UIView.RefreshAll(true);
+            return num;
+        }
+
+        protected void DelateLanes()
+        {
+            segmentsToDelete = new List<ushort>();
+
+            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
+            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
+            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
+            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
+
+            int gridMinX = Mathf.Max((int)((minX - 16f) / 64f + 135f), 0);
+            int gridMinZ = Mathf.Max((int)((minZ - 16f) / 64f + 135f), 0);
+            int gridMaxX = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
+            int gridMaxZ = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
+
+            //string xy = "Values gridMinX, gridMinZ, gridMaxX, gridMaxY: " + gridMinX + ", " + gridMinZ + ", " + gridMaxX + ", " + gridMaxZ;
+            //WriteLog("About to loop: " + xy);
+
+            for (int i = gridMinZ; i <= gridMaxZ; i++)
+            {
+                for (int j = gridMinX; j <= gridMaxX; j++)
+                {
+                    try
+                    {
+                        //WriteLog("In the for loops ");
+                        ushort num5 = NetManager.instance.m_segmentGrid[i * 270 + j];
+                        int num6 = 0;
+                        bool skip = false;
+                        while (num5 != 0u)
+                        {
+                            //WriteLog("In the while ");
+                            var segment = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)];
+
+                            bool curved = (segment.m_cornerAngleEnd != segment.m_cornerAngleStart);
+
+                            //WriteLog("Segment name: " + segment.Info.name + " Service :" + segment.Info.GetService());
+                            //WriteLog("m_startDirection: " + segment.m_startDirection + " m_endDirection: " + segment.m_endDirection);
+                            //WriteLog("m_cornerAngleEnd: " + segment.m_cornerAngleEnd + " m_cornerAngleStart: " + segment.m_cornerAngleStart);
+                            //WriteLog("m_startLeftSegment: " + segment.m_startLeftSegment + " m_startRightSegment: " + segment.m_startRightSegment);
+                            //WriteLog("m_endLeftSegment: " + segment.m_endRightSegment + " m_endRightSegment: " + segment.m_endRightSegment);
+
+                            Vector3 position = segment.m_middlePosition;
+                            float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
+
+                            if (positionDiff < 0f)
+                            {
+                                string seg = segment.Info.name;
+                                // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
+                                if (types[(int)tp.Ground].isChecked == false && (seg.Contains("Bridge ") == false || seg.Contains("Slope ") == false || seg.Contains("Tunnel ") == false)) { skip = true; }
+                                else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; }
+                                else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; }
+                                else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; }
+                                else if ((types[(int)tp.Curve].isChecked == false && curved)) { skip = true; }
+                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Pedestrian ")) { skip = true; }
+                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Bicycle ")) { skip = true; }
+                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Tram ")) { skip = true; }
+                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Metro ")) { skip = true; }
+                                else if (deletes[(int)p.Roads].isChecked == false && seg.Contains("Road")) { skip = true; }
+                                else if (deletes[(int)p.Railroads].isChecked == false && seg.Contains("Train")) { skip = true; }
+                                else if (deletes[(int)p.Highways].isChecked == false && seg.Contains("Highway")) { skip = true; }
+                                else if (deletes[(int)p.PowerLines].isChecked == false && seg.Contains("Power")) { skip = true; }
+                                else if (deletes[(int)p.WaterPipes].isChecked == false && seg.Contains("Water Pipe")) { skip = true; }
+                                else if (deletes[(int)p.HeatPipes].isChecked == false && seg.Contains("Heating Pipe")) { skip = true; }
+                                else if (deletes[(int)p.Airplanes].isChecked == false && seg.Contains("Airplane")) { skip = true; }
+                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Ship")) { skip = true; }
+
+                                if (skip == false)
+                                {
+                                    segmentsToDelete.Add(num5);
+                                    //WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
+                                }
+                                else { }
+                                //WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
+                            }
+                            num5 = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)].m_nextGridSegment;
+                            if (++num6 >= 262144)
+                            {
+                                CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
+                                break;
+                            }
+                        }   //while (num5 != 0u)
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteError("Error in DeleteLanes segmentsToDelete (segment loop) ", ex);
+                    }
+                }   //for (int j = gridMinX; j <= gridMaxX; j++)
+            }   //for (int i = gridMinZ; i <= gridMaxZ; i++)
+
+            foreach (var segment in segmentsToDelete)
+            {
+                try
+                {
+                    SimulationManager.instance.AddAction(this.ReleaseSegment(segment));
+                }
+                catch (Exception ex)
+                {
+                    WriteError("Error in DeleteLanes segmentsToDelete (Delete loop).", ex); ;
+                }
+            }
+            NetManager.instance.m_nodesUpdated = true;
+        }
+
+        private void ApplyServices()
+        {
+            //WriteLog("Entering ApplyServices: Code not yet implamented.");
+            Building[] buffer = Singleton<BuildingManager>.instance.m_buildings.m_buffer;
+
+            bool toggle = cbToggle.isChecked;
+            //string onoff = "Off";
+            byte rate = 0;
+
+
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                Building bd = buffer[i];
+
+                if (services[(int)dl.Beautification].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Beautification) { }
+                else if (services[(int)dl.Education].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Education) { }
+                else if (services[(int)dl.Electricity].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Electricity) { }
+                else if (services[(int)dl.FireDepartment].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.FireDepartment) { }
+                else if (services[(int)dl.Garbage].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Garbage) { }
+                else if (services[(int)dl.HealthCare].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.HealthCare) { }
+                else if (services[(int)dl.Monument].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Monument) { }
+                else if (services[(int)dl.PoliceDepartment].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.PoliceDepartment) { }
+                else if (services[(int)dl.PublicTransport].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.PublicTransport) { }
+                else if (services[(int)dl.Water].isChecked == false && bd.Info.m_class.m_service == ItemClass.Service.Water) { }
+                else if (ValidateSelectedArea(bd) == false)
+                {
+                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name));
+                }
+                else
+                {
+                    //WriteLog("Building Name: " + bd.Info.gameObject.name + " GetName: " + GetName(bd));
+                    //WriteLog("BuildingAI Name: " + bd.Info.m_buildingAI.name);
+                    //WriteLog("Building.Info.GetLocalizedTitle : " + bd.Info.GetLocalizedTitle());
+                    
+                    //onoff = "Off";
+                    rate = 0;
+                    if (toggle == true)
+                    {
+                        //onoff = "On";
+                        rate = 100;
+                    }
+
+                    //WriteLog("Setting services to " + onoff + ". bd.m_flags was: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
+
+                    if (bd.m_flags.IsFlagSet(Building.Flags.Active) != toggle)
+                    {
+                        //WriteLog("About to toggle: ");
+                        bd.m_flags ^= Building.Flags.Active;
+                        bd.m_productionRate = rate;
+                    }
+
+                    //WriteLog("Setting services to " + onoff + ". bd.m_flags is: " + bd.m_flags.IsFlagSet(Building.Flags.Active));
+                }
+                buffer[i] = bd;
+            }
+            //WriteLog("Leaving ApplyServices: Code not yet implamented.");
+        }
+        
         protected void ApplyUpdates()
         {
             //test our absolutes selected area for tiny selections and ignore them
@@ -2430,7 +2692,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex )
             {
-                WriteLog("ApplyUpdates Exception: " + ex.Message + " Stack: " + ex.StackTrace, true);
+                WriteError("Error in ApplyUpdates ", ex);
             }
         }
 
@@ -2445,7 +2707,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                WriteLog("ApplyDeletes unknown Option: " + ex.Message + " Stack: " + ex.StackTrace, true);
+                WriteError("Error in ApplyDeletes unknown Option: ", ex);
             }
 
             if (deletes[(int)p.Buildings].isChecked)
@@ -2456,8 +2718,6 @@ namespace AnotherRoadUpdate
                 BulldozeTrees();
         }
         
-        #region "Apply Changes"
-
         private void ApplyTerrainChange()
         {
             //Make the call to update the entire area with the new height
@@ -2509,9 +2769,9 @@ namespace AnotherRoadUpdate
         {
             ushort finalHeight = 500;
             MyITerrain mTerrain = new MyITerrain();
-            WriteLog("m_terrainHeight: " + m_terrainHeight);
+            //WriteLog("m_terrainHeight: " + m_terrainHeight);
             finalHeight = mTerrain.HeightToRaw((float)m_terrainHeight);
-            WriteLog("finalHeight: " + finalHeight);
+            //WriteLog("finalHeight: " + finalHeight);
 
             int minX;
             int minZ;
@@ -2521,7 +2781,7 @@ namespace AnotherRoadUpdate
             GetMinMax(out minX, out minZ, out maxX, out maxZ);
 
             string log = "ApplyBrush - GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") - finalHeight: " + finalHeight;
-            WriteLog(log);
+            //WriteLog(log);
 
             //we need to make sure that this was not a mouse click event
             if (maxZ - minZ >= 1 && maxX - minX >= 1)
@@ -2580,7 +2840,7 @@ namespace AnotherRoadUpdate
 
                 string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
                 log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
-                WriteLog(log);
+                //WriteLog(log);
             }
         }
 
@@ -2708,15 +2968,11 @@ namespace AnotherRoadUpdate
 
         internal static void WriteLog(string data)
         {
-            WriteLog(data, false);
-        }
-
-        internal static void WriteLog(string data, bool delete)
-        {
             if (logging == false) { return; }
             string filename = "ARUT_Logging" + DateTime.Now.ToString("yyyyMMdd") + ".txt";
-            if (delete)
+            if (m_deletelog)
             {
+                m_deletelog = false;
                 File.Delete(filename);
             }
 
@@ -2726,17 +2982,18 @@ namespace AnotherRoadUpdate
             file.Close();
         }
 
-        internal static void WriteLog(string data, bool delete, bool exception)
+        internal static void WriteError(string data, Exception ex)
         {
             string filename = "ARUT_Error" + DateTime.Now.ToString("yyyyMMdd") + ".txt";
-            if (delete)
+            if (m_delete)
             {
+                m_delete = false;
                 File.Delete(filename);
             }
 
             // Write the string to a file.
             System.IO.StreamWriter file = File.AppendText(filename);
-            file.WriteLine(data);
+            file.WriteLine(data + " Exception: " + ex.Message + " Stack: " + ex.StackTrace);
             file.Close();
         }
 

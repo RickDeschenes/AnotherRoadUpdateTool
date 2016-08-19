@@ -906,7 +906,7 @@ namespace AnotherRoadUpdate
 
         internal void CreateSettings()
         {
-            RoadUpdateTool.WriteLog("entring CreateSettings");
+            //RoadUpdateTool.WriteLog("Entering CreateSettings");
             Assembly assembly = Assembly.GetExecutingAssembly();
             Stream stream = assembly.GetManifestResourceStream("AnotherRoadUpdateTest.ARUTInterface.xml");
             if (stream == null)
@@ -923,7 +923,7 @@ namespace AnotherRoadUpdate
             br.Close();
             bw.Close();
             xml.Load("ARUTInterface.xml");
-            RoadUpdateTool.WriteLog("leaving CreateSettings");
+            //RoadUpdateTool.WriteLog("Leaving CreateSettings");
         }
 
         private void FillSettings()
@@ -1084,7 +1084,7 @@ namespace AnotherRoadUpdate
             }
             catch (Exception ex)
             {
-                RoadUpdateTool.WriteLog("Interface.Save loc: " + loc + " error: " + ex.Message + ":: Stacktrace: " + ex.StackTrace, true);
+                RoadUpdateTool.WriteLog("Interface.Save loc: " + loc + " error: " + ex.Message + ":: Stacktrace: " + ex.StackTrace);;
             }
             xml.Save(us);
         }
@@ -1099,7 +1099,7 @@ namespace AnotherRoadUpdate
                 XmlNode tb = xml.SelectSingleNode("UserSettings");
                 XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
                 nd.InnerText = false.ToString();
-                RoadUpdateTool.WriteLog("creating a node: " + node);
+                //RoadUpdateTool.WriteLog("Creating a node: " + node);
                 tb.AppendChild(nd);
             }
             //we have a node get the value

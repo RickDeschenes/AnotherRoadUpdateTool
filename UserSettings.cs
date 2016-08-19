@@ -47,7 +47,18 @@ namespace AnotherRoadUpdate
         private bool _delete;
         private bool _services;
         private bool _toggle;
+        private bool _districts;
         private bool _terrain;
+        private bool _HealthCare;
+        private bool _PoliceDepartment;
+        private bool _FireDepartment;
+        private bool _PublicTransport;
+        private bool _Education;
+        private bool _Electricity;
+        private bool _Water;
+        private bool _Garbage;
+        private bool _Beautification;
+        private bool _Monument;
         private double _terrainheight;
 
         public bool Basic { get { return _basic; } set { _basic = value; } }
@@ -84,7 +95,18 @@ namespace AnotherRoadUpdate
         public bool Delete { get { return _delete; } set { _delete = value; } }
         public bool Services { get { return _services; } set { _services = value; } }
         public bool Toggle { get { return _toggle; } set { _toggle = value; } }
+        public bool Districts { get { return _districts; } set { _districts = value; } }
         public bool Terrain { get { return _terrain; } set { _terrain = value; } }
+        public bool HealthCare { get { return _HealthCare; } set { _HealthCare = value; } }
+        public bool PoliceDepartment { get { return _PoliceDepartment; } set { _PoliceDepartment = value; } }
+        public bool FireDepartment { get { return _FireDepartment; } set { _FireDepartment = value; } }
+        public bool PublicTransport { get { return _PublicTransport; } set { _PublicTransport = value; } }
+        public bool Education { get { return _Education; } set { _Education = value; } }
+        public bool Electricity { get { return _Electricity; } set { _Electricity = value; } }
+        public bool Water { get { return _Water; } set { _Water = value; } }
+        public bool Garbage { get { return _Garbage; } set { _Garbage = value; } }
+        public bool Beautification { get { return _Beautification; } set { _Beautification = value; } }
+        public bool Monument { get { return _Monument; } set { _Monument = value; } }
         public double TerrainHeight { get { return _terrainheight; } set { _terrainheight = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
@@ -144,7 +166,7 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/Props").InnerText = Props.ToString();
                 xml.SelectSingleNode("UserSettings/Ground").InnerText = Ground.ToString();
                 xml.SelectSingleNode("UserSettings/Bridge").InnerText = Bridge.ToString();
-                xml.SelectSingleNode("UserSettings/Slope").InnerText = Bridge.ToString();
+                xml.SelectSingleNode("UserSettings/Slope").InnerText = Slope.ToString();
                 xml.SelectSingleNode("UserSettings/Tunnel").InnerText = Tunnel.ToString();
                 xml.SelectSingleNode("UserSettings/Curve").InnerText = Curve.ToString();
                 xml.SelectSingleNode("UserSettings/Update").InnerText = Update.ToString();
@@ -152,11 +174,24 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/Services").InnerText = Services.ToString();
                 xml.SelectSingleNode("UserSettings/Toggle").InnerText = Toggle.ToString();
                 xml.SelectSingleNode("UserSettings/Terrain").InnerText = Terrain.ToString();
+                xml.SelectSingleNode("UserSettings/Districts").InnerText = Districts.ToString();
+
+                xml.SelectSingleNode("UserSettings/HealthCare").InnerText = HealthCare.ToString();
+                xml.SelectSingleNode("UserSettings/PoliceDepartment").InnerText = PoliceDepartment.ToString();
+                xml.SelectSingleNode("UserSettings/FireDepartment").InnerText = FireDepartment.ToString();
+                xml.SelectSingleNode("UserSettings/PublicTransport").InnerText = PublicTransport.ToString();
+                xml.SelectSingleNode("UserSettings/Education").InnerText = Education.ToString();
+                xml.SelectSingleNode("UserSettings/Electricity").InnerText = Electricity.ToString();
+                xml.SelectSingleNode("UserSettings/Water").InnerText = Water.ToString();
+                xml.SelectSingleNode("UserSettings/Garbage").InnerText = Garbage.ToString();
+                xml.SelectSingleNode("UserSettings/Beautification").InnerText = Beautification.ToString();
+                xml.SelectSingleNode("UserSettings/Monument").InnerText = Monument.ToString();
+
                 xml.SelectSingleNode("UserSettings/TerrainHeight").InnerText = TerrainHeight.ToString("0.00");
             }
             catch (Exception ex)
             {
-                RoadUpdateTool.WriteLog("UserSettings.Save loc: " + loc + " error: " + ex.Message + ":: Stacktrace: " + ex.StackTrace, true);
+                RoadUpdateTool.WriteError("Error in UserSettings.Save loc: " + loc + ".", ex);
             }
             xml.Save(us);
         }
@@ -192,7 +227,7 @@ namespace AnotherRoadUpdate
             _props = ValidateSetting("Props");
             _ground = ValidateSetting("Ground");
             _bridge = ValidateSetting("Bridge");
-            _bridge = ValidateSetting("Slope");
+            _slope = ValidateSetting("Slope");
             _tunnel = ValidateSetting("Tunnel");
             _curve = ValidateSetting("Curve");
             _update = ValidateSetting("Update");
@@ -200,6 +235,19 @@ namespace AnotherRoadUpdate
             _services = ValidateSetting("Services");
             _toggle = ValidateSetting("Toggle");
             _terrain = ValidateSetting("Terrain");
+            _districts = ValidateSetting("Districts");
+
+            _HealthCare = ValidateSetting("HealthCare");
+            _PoliceDepartment = ValidateSetting("PoliceDepartment");
+            _FireDepartment = ValidateSetting("FireDepartment");
+            _PublicTransport = ValidateSetting("PublicTransport");
+            _Education = ValidateSetting("Education");
+            _Electricity = ValidateSetting("Electricity");
+            _Water = ValidateSetting("Water");
+            _Garbage = ValidateSetting("Garbage");
+            _Beautification = ValidateSetting("Beautification");
+            _Monument = ValidateSetting("Monument");
+
             _terrainheight = ValidateSetting("TerrainHeight", "double");
         }
 
@@ -213,13 +261,14 @@ namespace AnotherRoadUpdate
                 XmlNode tb = xml.SelectSingleNode("UserSettings");
                 XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
                 nd.InnerText = false.ToString();
-                RoadUpdateTool.WriteLog("creating a node: " + node);
+                //RoadUpdateTool.WriteLog("creating a node: " + node);
                 tb.AppendChild(nd);
             }
             //we have a node get the value
             setting = (xml.SelectSingleNode("UserSettings/" + node).InnerText == "True");
             return setting;
         }
+
         private double ValidateSetting(string node, string type)
         {
             //we already validated the file exists and has our node "UserSettings"
@@ -230,7 +279,7 @@ namespace AnotherRoadUpdate
                 XmlNode tb = xml.SelectSingleNode("UserSettings");
                 XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
                 nd.InnerText = false.ToString();
-                RoadUpdateTool.WriteLog("creating a node: " + node);
+                //RoadUpdateTool.WriteLog("Creating a node: " + node);
                 tb.AppendChild(nd);
             }
             //we have a node get the value
@@ -242,7 +291,7 @@ namespace AnotherRoadUpdate
 
         public void CreateSettings()
         {
-            RoadUpdateTool.WriteLog("entring CreateSettings");
+            //RoadUpdateTool.WriteLog("Entring CreateSettings");
             xml = new XmlDocument();
             XmlDeclaration xmlDeclaration = xml.CreateXmlDeclaration("1.0", "UTF-8", null);
             XmlElement root = xml.DocumentElement;
@@ -257,7 +306,7 @@ namespace AnotherRoadUpdate
                 table.AppendChild(node);
             }
             xml.Save(us);
-            RoadUpdateTool.WriteLog("leaving CreateSettings");
+            //RoadUpdateTool.WriteLog("Leaving CreateSettings");
         }
     }
 }
