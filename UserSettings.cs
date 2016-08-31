@@ -5,13 +5,13 @@ using System.Linq;
 using System.Xml;
 using System.Text;
 
-namespace AnotherRoadUpdate
+namespace AnotherRoadUpdateTool
 {
     internal class UserSettings
     {
         #region Declarations
 
-        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Roads", "Railroads", "Highways", "PowerLines", "WaterPipes", "HeatPipes", "Airplanes", "Shipping", "Pedestrian", "Bicycle", "Tram", "Metro", "Buildings", "Trees", "Props", "Ground", "Bridge", "Slope", "Tunnel", "Curve", "Update", "Delete", "Services", "Toggle", "Terrain", "TerrainHeight" };
+        private string[] settings = new string[] { "Basic", "Large", "Highway", "Medium", "Oneway", "ToBasic", "ToLarge", "ToHighway", "ToMedium", "ToOneway", "Roads", "Railroads", "Highways", "PowerLines", "WaterPipes", "HeatPipes", "Airplanes", "Shipping", "Pedestrian", "Bicycle", "Tram", "Metro", "Buildings", "Trees", "Props", "Ground", "Bridge", "Slope", "Tunnel", "Curve", "Update", "Delete", "Services", "Toggle", "Terrain", "TerrainHeight", "Districts", "DistrictToggle" };
 
         private bool _basic;
         private bool _large;
@@ -48,6 +48,7 @@ namespace AnotherRoadUpdate
         private bool _services;
         private bool _toggle;
         private bool _districts;
+        private bool _districttoggle;
         private bool _terrain;
         private bool _HealthCare;
         private bool _PoliceDepartment;
@@ -96,6 +97,7 @@ namespace AnotherRoadUpdate
         public bool Services { get { return _services; } set { _services = value; } }
         public bool Toggle { get { return _toggle; } set { _toggle = value; } }
         public bool Districts { get { return _districts; } set { _districts = value; } }
+        public bool DistrictToggle { get { return _districttoggle; } set { _districttoggle = value; } }
         public bool Terrain { get { return _terrain; } set { _terrain = value; } }
         public bool HealthCare { get { return _HealthCare; } set { _HealthCare = value; } }
         public bool PoliceDepartment { get { return _PoliceDepartment; } set { _PoliceDepartment = value; } }
@@ -175,6 +177,7 @@ namespace AnotherRoadUpdate
                 xml.SelectSingleNode("UserSettings/Toggle").InnerText = Toggle.ToString();
                 xml.SelectSingleNode("UserSettings/Terrain").InnerText = Terrain.ToString();
                 xml.SelectSingleNode("UserSettings/Districts").InnerText = Districts.ToString();
+                xml.SelectSingleNode("UserSettings/DistrictToggle").InnerText = DistrictToggle.ToString();
 
                 xml.SelectSingleNode("UserSettings/HealthCare").InnerText = HealthCare.ToString();
                 xml.SelectSingleNode("UserSettings/PoliceDepartment").InnerText = PoliceDepartment.ToString();
@@ -236,6 +239,7 @@ namespace AnotherRoadUpdate
             _toggle = ValidateSetting("Toggle");
             _terrain = ValidateSetting("Terrain");
             _districts = ValidateSetting("Districts");
+            _districttoggle = ValidateSetting("DistrictToggle");
 
             _HealthCare = ValidateSetting("HealthCare");
             _PoliceDepartment = ValidateSetting("PoliceDepartment");

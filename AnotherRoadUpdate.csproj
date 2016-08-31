@@ -7,8 +7,8 @@
     <ProjectGuid>{31DA1728-2341-409B-B3D9-01428618DD77}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>AnotherRoadUpdate</RootNamespace>
-    <AssemblyName>AnotherRoadUpdate</AssemblyName>
+    <RootNamespace>AnotherRoadUpdateTool</RootNamespace>
+    <AssemblyName>AnotherRoadUpdateTool</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -62,15 +62,10 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Interface.cs" />
     <Compile Include="UserSettings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Dozer64.ico" />
-    <EmbeddedResource Include="ARUTInterface.xml">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

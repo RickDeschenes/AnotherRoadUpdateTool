@@ -19,7 +19,7 @@ using System.Text.RegularExpressions;
 /// added Additional selections
 /// Added new to remove warning for reused m_
 /// </summary>
-namespace AnotherRoadUpdate
+namespace AnotherRoadUpdateTool
 {
     public class RoadUpdateTool : DefaultTool
     {
@@ -130,7 +130,9 @@ namespace AnotherRoadUpdate
 
         private LoadMode mode;
 
+        //set to false once code is in production (Why not use "debug mode")
         private static bool logging = true;
+        private static bool erroring = true;
 
         private bool m_active;
         private bool m_selectable;
@@ -205,6 +207,7 @@ namespace AnotherRoadUpdate
         private UIButton btHide;
         private UIButton mainButton;
         private UICheckBox cbToggle;
+        private UICheckBox cbDistrictToggle;
         private UIDropDown ddHeights;
         private UITextField tfTerrainHeight;
         
@@ -247,10 +250,10 @@ namespace AnotherRoadUpdate
         private string[] m_heights = new string[] { "0.00", "5.00", "10.00", "15.00", "20.00", "25.00", "30.00", "35.00", "40.00", "45.00", "50.00", "55.00", "60.00", "65.00", "70.00", "75.00", "80.00", "85.00", "90.00", "95.00", "100.00", "150.00", "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00", "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
         UserSettings us = new UserSettings();
-        Interface it = new Interface();
+        //Interface it = new Interface();
 
         private static bool m_delete = true;
-        private static bool m_deletelog;
+        private static bool m_deletelog = true;
 
         #endregion
 
@@ -373,9 +376,9 @@ namespace AnotherRoadUpdate
                     }
                     else if (options[(int)ops.Districts].isChecked && plDistricts.isVisible)
                     {
-                        //WriteLog("Trying ApplyDistrictsChange");
+                        WriteLog("Trying ApplyDistrictsChange");
                         ApplyDistrictsChange();
-                        //WriteLog("Trying ApplyDistrictsChange");
+                        WriteLog("Tried ApplyDistrictsChange");
                     }
                     else if (options[(int)ops.Terrain].isChecked && plTerrain.isVisible)
                     {
@@ -384,7 +387,7 @@ namespace AnotherRoadUpdate
                         //Handle Services on/off or Terrian Updates (Map mode)
                         if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                             ApplyTerrainChange();
-                        //WriteLog("Trying ApplyDistrictsChange");
+                        //WriteLog("Tried ApplyDistrictsChange");
                     }
                     m_active = false;
                 }
@@ -790,7 +793,7 @@ namespace AnotherRoadUpdate
             addLabel(plDistricts, 1, 1, "Toggle the check box to create or delete the district. (Undo is not available)", true);
             addLabel(plDistricts, 20, 1, "Add to an existing District by starting the selection within the district.", true);
 
-            UICheckBox cb = addCheckbox(plDistricts, 40, 15, "Checked for Create (Update), unchecked for delete", "Check to create a district, uncheck to delete", true);
+            cbDistrictToggle = addCheckbox(plDistricts, 40, 15, "Checked for Create (Update), unchecked for delete", "Check to create a district, uncheck to delete", true);
 
             WriteLog("Leaving GenerateplDistricts");
         }
@@ -860,6 +863,7 @@ namespace AnotherRoadUpdate
             var label = panel.AddUIComponent<UILabel>();
             label.relativePosition = new Vector3(xPos + 25, yPos + 3);
             cb.label = label;
+            cb.label.tabIndex = cb.GetInstanceID();
             cb.text = text;
 
             UISprite uncheckSprite = cb.AddUIComponent<UISprite>();
@@ -987,7 +991,7 @@ namespace AnotherRoadUpdate
             bt.focusedTextColor = new Color32(255, 255, 255, 255);
             bt.pressedTextColor = new Color32(30, 30, 44, 255);
 
-            WriteLog("Leaving addButton: " + text + " location: " + bt.relativePosition + "main HeightxWidth: " + panel.height + "x" + panel.width);
+            //WriteLog("Leaving addButton: " + text + " location: " + bt.relativePosition + "main HeightxWidth: " + panel.height + "x" + panel.width);
             return bt;
         }
 
@@ -1043,6 +1047,8 @@ namespace AnotherRoadUpdate
             us.Services = options[(int)ops.Services].isChecked;
             us.Terrain = options[(int)ops.Terrain].isChecked;
             us.Toggle = cbToggle.isChecked;
+            us.Districts = options[(int)ops.Districts].isChecked;
+            us.DistrictToggle = cbDistrictToggle.isChecked;
             us.TerrainHeight = m_terrainHeight;
 
             us.HealthCare = services[(int)dl.HealthCare].isChecked;
@@ -1134,6 +1140,8 @@ namespace AnotherRoadUpdate
                 options[(int)ops.Terrain].isChecked = us.Terrain;
                 loc = "Toggle";
                 cbToggle.isChecked = us.Toggle;
+                options[(int)ops.Districts].isChecked = us.Districts;
+                cbDistrictToggle.isChecked = us.DistrictToggle;
                 loc = "TerrainHeight";
                 m_terrainHeight = (float)us.TerrainHeight;
 
@@ -1527,19 +1535,39 @@ namespace AnotherRoadUpdate
 
         private void btHide_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-            WriteLog("Entering btHide_eventClick: " + plMain.isVisible);
+            //WriteLog("Entering btHide_eventClick: " + plMain.isVisible);
             this.OnDisable();
             plMain.isVisible = false;
             this.enabled = false;
-            WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
+            //WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
         }
 
         private void Label_eventClicked(UIComponent component, UIMouseEventParameter eventParam)
         {
-            //WriteLog("Entering Label_eventClicked");
-            UICheckBox cb = (UICheckBox)component.parent;
-            cb.isChecked = !cb.isChecked;
-            //WriteLog("Leaving Label_eventClicked");
+            WriteLog("Entering Label_eventClicked");
+            WriteLog("Component name and parent Name: " + component.name + ":: " + component.parent.name);
+            UILabel lb = (UILabel)component;
+            WriteLog("Label name and parent Name: " + lb.text + ":: " + lb.parent.name);
+            UICheckBox cb;
+            WriteLog("UICheckBox cb initiated");
+            UIPanel pl = (UIPanel)lb.parent;
+            WriteLog("Label parent: " + pl.name);
+            int cbindex = Convert.ToInt32(lb.tabIndex);
+            foreach (var c in pl.components)
+            {
+                if (c.GetType() == typeof(UICheckBox))
+                {
+                    cb = (UICheckBox)c;
+                    WriteLog("looping through panels checkboxesName: " + cb.text + " ID: " + cb.GetInstanceID() + " Index: " + cbindex);
+                    if (cb.GetInstanceID() == cbindex)
+                    {
+                        WriteLog("CheckBox: " + cb.text);
+                        cb.isChecked = !cb.isChecked;
+                        break;
+                    }
+                }
+            }
+            WriteLog("Leaving Label_eventClicked");
         }
 
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
@@ -1883,10 +1911,10 @@ namespace AnotherRoadUpdate
 
             //WriteLog("Leaving ToRoads_eventCheckChanged: Option: " + cb.text);
         }
-        
+
         private void Button_Clicked(UIComponent component, UIMouseEventParameter eventParam)
         {
-            WriteLog("Entering Button_Clicked: " + plMain.isVisible);
+            //WriteLog("Entering Button_Clicked: " + plMain.isVisible);
             if (plMain.isVisible == true)
             {
                 this.OnDisable();
@@ -1899,7 +1927,7 @@ namespace AnotherRoadUpdate
                 plMain.isVisible = true;
                 mainButton.enabled = true;
             }
-            WriteLog("Leaving Button_Clicked: " + plMain.isVisible);
+            //WriteLog("Leaving Button_Clicked: " + plMain.isVisible);
         }
 
         #endregion
@@ -2338,43 +2366,71 @@ namespace AnotherRoadUpdate
             int maxZ;
 
             GetMinMax(out minX, out minZ, out maxX, out maxZ);
-            string log = "ApplyBrush - GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
-            //WriteLog(log);
+            string log = "ApplyDistrictsChange.GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
+            WriteLog(log);
 
-            //load the district buffer
-            DistrictManager dm = Singleton<DistrictManager>.instance;
-            District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
-
-            foreach (District d in buffer)
+            try
             {
-                //we need to see if we are in any existing districts
-                //we need to make sure that this was not a mouse click event
-                if (maxZ - minZ >= 1 && maxX - minX >= 1)
+                //load the districtManager
+                DistrictManager dm = Singleton<DistrictManager>.instance;
+                District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
+
+                byte id;
+                dm.CreateDistrict(out id);
+                WriteLog("id; " + id);
+                dm.SetDistrictName((int)id, "New District");
+                dm.AreaModified(minX, minZ, maxX, maxZ, true);
+                dm.GetDistrictArea(id, out minX, out minZ, out maxX, out maxZ);
+                string name = "District Name: " + dm.GetDistrictName((int)id) +"; id: " + id + "; DistrictsArea = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
+                WriteLog(name);
+                id = 0;
+                foreach (District d in buffer)
                 {
-                    //we need to update the area in 120 point sections
-                    for (int i = minZ; i <= maxZ; i++)
-                    {
-                        for (int j = minX; j <= maxX; j++)
-                        {
-                            byte id;
-                            Singleton<DistrictManager>.instance.CreateDistrict(out id);
-                            Singleton<DistrictManager>.instance.AreaModified(minX, minZ, maxX, maxZ, true);
-
-                        }
-                        //make sure we exit the loop
-                        if (i + 1 >= maxZ)
-                            break;
-                        i += 119;
-                        if (i > maxZ)
-                            i = maxZ - 1;
-                    }
-
-                    string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
-                    log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
-                    //WriteLog(log);
+                    District.Flags df = d.m_flags;
+                    dm.GetDistrictArea(id, out minX, out minZ, out maxX, out maxZ);
+                    name = "District Name: " + dm.GetDistrictName((int)id) + "; id: " + id + "; DistrictsArea = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
+                    WriteLog(name);
+                    id += 1;
                 }
-
             }
+            catch (Exception ex)
+            {
+                WriteError("Error in ApplyDistrictsChange: ", ex);
+            }
+            ////load the district buffer
+            //DistrictManager dm = Singleton<DistrictManager>.instance;
+            //District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
+
+            //foreach (District d in buffer)
+            //{
+            //    //we need to see if we are in any existing districts
+            //    //we need to make sure that this was not a mouse click event
+            //    if (maxZ - minZ >= 1 && maxX - minX >= 1)
+            //    {
+            //        //we need to update the area in 120 point sections
+            //        for (int i = minZ; i <= maxZ; i++)
+            //        {
+            //            for (int j = minX; j <= maxX; j++)
+            //            {
+            //                byte id;
+            //                Singleton<DistrictManager>.instance.CreateDistrict(out id);
+            //                Singleton<DistrictManager>.instance.AreaModified(minX, minZ, maxX, maxZ, true);
+
+            //            }
+            //            //make sure we exit the loop
+            //            if (i + 1 >= maxZ)
+            //                break;
+            //            i += 119;
+            //            if (i > maxZ)
+            //                i = maxZ - 1;
+            //        }
+
+            //        string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
+            //        log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
+            //        //WriteLog(log);
+            //    }
+
+            //}
         }
 
         private int ConvertSegments(string convertTo, string convertFrom, bool test, out int totalCost, out ToolErrors errors)
@@ -2482,13 +2538,24 @@ namespace AnotherRoadUpdate
                             }
                             catch (Exception ex)
                             {
-                                string message = "Error converting: " + segment.Info.name + " errors: " + errors + " to " + convertTo + ". Message: " + ex.Message + " Stack: " + ex.StackTrace;
                                 string lenght = "Left Segment Lenght: " + Math.Abs((float)(segment.m_startLeftSegment - segment.m_endLeftSegment)).ToString();
                                 lenght += " Right Segment Lenght: " + Math.Abs((float)(segment.m_startRightSegment - segment.m_endRightSegment)).ToString();
+                                string message = "Error converting: " + segment.Info.name + " to " + convertTo + "; errors: " + errors + "; " + lenght;
                                 //sw.WriteLine(lenght);
                                 WriteError(message, ex);
                                 //sw.WriteLine(message);
                                 issues += 1;
+                                try
+                                {
+                                    //lets retry this once
+                                    errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
+                                    num++;
+                                    totalCost += tempCost;
+
+                                }
+                                catch
+                                { //do nothing }
+                                }
                             }
                         }
                         else
@@ -2501,7 +2568,8 @@ namespace AnotherRoadUpdate
             }
             lInformation.text = "Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues;
             //WriteLog("" + sw);
-            UIView.RefreshAll(true);
+            //UIView.RefreshAll(true);
+            base.RenderOverlay(RenderManager.instance.CurrentCameraInfo);
             return num;
         }
 
@@ -2984,6 +3052,7 @@ namespace AnotherRoadUpdate
 
         internal static void WriteError(string data, Exception ex)
         {
+            if (erroring == false) { return; }
             string filename = "ARUT_Error" + DateTime.Now.ToString("yyyyMMdd") + ".txt";
             if (m_delete)
             {

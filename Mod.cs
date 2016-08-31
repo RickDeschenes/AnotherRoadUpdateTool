@@ -6,7 +6,7 @@ using static UnityEngine.Object;
 /// Updated from SkylinesRoadUpdate added global preferences
 /// added Additional selections
 /// </summary>
-namespace AnotherRoadUpdate
+namespace AnotherRoadUpdateTool
 {
     public class Mod : IUserMod
     {
