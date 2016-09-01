@@ -1,0 +1,9 @@
+I have a terrain update that allows the user to select an area** and update the area to the height they entered.
+Issue: sometimes when updating I get low level errors that are not in my code so I cannot see a good work around.
+Issue: my undo has a lot to be desired, if you cross over your prior updated area the undo does not work
+In the update roads mode the user selects an area to update all road type A to road type be.
+  there are options to handle tunnels, slopes and crurves
+Issue: Sometime I encounter errors 6 to ten layers below my original calls.
+  I have adressed most of the usability error by recalling the update
+  However there are still some errors where roads to not get updated or 
+  worse update to bridges on top of the original road that should have been replaced
