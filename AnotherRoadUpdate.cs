@@ -129,6 +129,8 @@ namespace AnotherRoadUpdateTool
 
         #region Variables
 
+        internal static UserSettings us = new UserSettings();
+
         #region Static
 
         //set to false once code is in production (Why not use "debug mode")
@@ -137,14 +139,21 @@ namespace AnotherRoadUpdateTool
         private static bool m_delete = true;
         private static bool m_deletelog = true;
 
-        public readonly static SavedBool DemolishAbandoned = new SavedBool("ModDemolishAbandoned", Settings.gameSettingsFile, true, true);
-        public readonly static SavedBool DemolishBurned = new SavedBool("ModDemolishBurned", Settings.gameSettingsFile, true, true);
+        internal static bool AdjustAreas;
+        internal static bool AdjustMoney;
+        internal static bool AllRoads;
+        internal static bool AutoDistroy;
+
+        internal static int MaxAreas;
+        //internal static int StartMoney;
+        internal static int StartMoney { get { return us.StartMoney; } private set { value = us.StartMoney; }  }
+
+        internal readonly static SavedBool DemolishAbandoned = new SavedBool("ModDemolishAbandoned", Settings.gameSettingsFile, true, true);
+        internal readonly static SavedBool DemolishBurned = new SavedBool("ModDemolishBurned", Settings.gameSettingsFile, true, true);
         
         #endregion
 
         #region Objects
-
-        UserSettings us = new UserSettings();
 
         private object m_dataLock = new object();
 
@@ -155,8 +164,16 @@ namespace AnotherRoadUpdateTool
         private MaxAreas Areas;
 
         #endregion
-        
+
         #region Private
+
+        #region not Arrays
+
+        private bool ShowDelete;
+        private bool ShowUpdate;
+        private bool ShowTerrain;
+        private bool ShowServices;
+        private bool ShowDistricts;
 
         private bool m_active;
         private bool m_selectable;
@@ -234,7 +251,10 @@ namespace AnotherRoadUpdateTool
         private UICheckBox cbDistrictToggle;
         private UIDropDown ddHeights;
         private UITextField tfTerrainHeight;
+        private UIButton btClose;
+        private UILabel lTitle;
 
+        private List<UICheckBox> panels = new List<UICheckBox>();
         private List<UICheckBox> options = new List<UICheckBox>();
         private List<UICheckBox> deletes = new List<UICheckBox>();
         private List<UICheckBox> services = new List<UICheckBox>();
@@ -257,6 +277,8 @@ namespace AnotherRoadUpdateTool
 
         private List<UICheckBox> toOneway = new List<UICheckBox>();
         private List<UICheckBox> fromOneway = new List<UICheckBox>();
+
+        #endregion
 
         //These strings are importent in that they control the interface
         private string[] m_options = new string[] { "Updates", "Deletes", "Services", "Terrain", "Districts" };
@@ -288,7 +310,7 @@ namespace AnotherRoadUpdateTool
             "45.00", "50.00", "55.00", "60.00", "65.00", "70.00", "75.00", "80.00", "85.00", "90.00", "95.00", "100.00", "150.00",
             "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00",
             "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
-        
+
         #endregion
 
         #endregion
@@ -494,8 +516,6 @@ namespace AnotherRoadUpdateTool
                 else
                     plMain.backgroundSprite = "SubcategoriesPanel";
 
-                plMain.isVisible = false;
-                plMain.name = "AnotherRoadUpdateTool";
                 //Create the panels (Little like a tab view)
                 int height = CreatePanels(plMain);
 
@@ -546,17 +566,6 @@ namespace AnotherRoadUpdateTool
 
             srv = GenerateOptions(panel, ply, plx);
 
-            if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
-            {
-                options[(int)ops.Services].Disable();
-                options[(int)ops.Terrain].Enable();
-            }
-            else
-            {
-                options[(int)ops.Services].Enable();
-                options[(int)ops.Terrain].Disable();
-            }
-
             typ = GenerateplTypes(panel, srv, plx);
             del = srv + 40;
             ter = (int)plOptions.height;
@@ -584,25 +593,49 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Entering GenerateOptions");
             //Show the road type option
             plOptions = panel.AddUIComponent<UIPanel>();
-            plOptions.relativePosition = new Vector3(1, 1);
+            plOptions.relativePosition = new Vector3(plx, ply);
             plOptions.isVisible = true;
-            plOptions.tooltip = "Select the type of updates to perform.";
+            plOptions.tooltip = "Select the type of updates and options to perform.";
 
             //This was the title, indent the rest
             lSelectable = addLabel(plOptions, ply, plx, m_updatetool + m_unavailable, true);
+            ply += 20;
+            lInformation = addLabel(plOptions, ply, 1, "Details from changes.", true);
+            ply += 20;
 
             int cb = 0;
             foreach (string s in m_options)
             {
+                bool enable = true;
                 string t = String.Format("Select to display the {0} options", s);
-                options.Add(addCheckbox(plOptions, ply + 20, plx, s, t, true));
+                options.Add(addCheckbox(plOptions, ply, plx, s, t, true));
                 //Space out the options (We may ad building, tress, and props)
                 plx += 100;
+                switch (s)
+                {
+                    case "Update":
+                        enable = us.ShowUpdate;
+                        break;
+                    case "Delete":
+                        enable = us.ShowDelete;
+                        break;
+                    case "Districts":
+                        enable = (us.ShowDistricts == (mode != LoadMode.LoadMap && mode != LoadMode.NewMap));
+                        break;
+                    case "Terrain":
+                        enable = (us.ShowTerrain == (mode == LoadMode.LoadMap || mode == LoadMode.NewMap));
+                        break;
+                    case "Services":
+                        enable = (us.ShowServices == (mode != LoadMode.LoadMap && mode != LoadMode.NewMap));
+                        break;
+                    default:
+                        break;
+                }
+                WriteLog("Set option: " + s + " to: " + enable + ".");
+                options[cb].enabled = enable;
                 options[cb].eventCheckChanged += Options_eventCheckChanged;
                 cb += 1;
             }
-
-            lInformation = addLabel(plOptions,  ply + 45, 1, "Details from changes.", true);
 
             //set the panal size (two rows, 50)
             plOptions.size = new Vector2(panel.width, ply + 65);
@@ -1134,9 +1167,20 @@ namespace AnotherRoadUpdateTool
             us.Abandoned = services[(int)dl.Abandoned].isChecked;
             us.Burned = services[(int)dl.Burned].isChecked;
 
-            Properties.Settings.Default.Chirper = services[(int)dl.Chirper].isChecked;
+            us.Chirper = services[(int)dl.Chirper].isChecked;
+            us.ShowDelete = ShowDelete;
+            us.ShowUpdate = ShowUpdate;
+            us.ShowTerrain = ShowTerrain;
+            us.ShowServices = ShowServices;
+            us.ShowDistricts = ShowDistricts;
+            us.AdjustAreas = AdjustAreas;
+            us.AdjustMoney = AdjustMoney;
+            us.AllRoads = AllRoads;
+            us.AutoDistroy = AutoDistroy;
 
-          //WriteLog("On Exit us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
+            us.MaxAreas = MaxAreas;
+            us.StartMoney = StartMoney;
+            //WriteLog("On Exit us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
 
             us.Save();
 
@@ -1234,9 +1278,23 @@ namespace AnotherRoadUpdateTool
                 services[(int)dl.Abandoned].isChecked = us.Abandoned;
                 services[(int)dl.Burned].isChecked = us.Burned;
 
-                services[(int)dl.Chirper].isChecked = Properties.Settings.Default.Chirper;
+                services[(int)dl.Chirper].isChecked = us.Chirper;
 
-              //WriteLog("On entering us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
+                ShowDelete = us.ShowDelete;
+                ShowUpdate = us.ShowUpdate;
+                ShowTerrain = us.ShowTerrain;
+                ShowServices = us.ShowServices;
+                ShowDistricts = us.ShowDistricts;
+
+                AdjustAreas = us.AdjustAreas;
+                AdjustMoney = us.AdjustMoney;
+                AllRoads = us.AllRoads;
+                AutoDistroy = us.AutoDistroy;
+
+                MaxAreas = us.MaxAreas;
+                StartMoney = us.StartMoney;
+
+                //WriteLog("On entering us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
 
                 //we need to toggle shown or not
                 Chirp.Toggle(services[(int)dl.Chirper].isChecked);
@@ -1244,9 +1302,9 @@ namespace AnotherRoadUpdateTool
                 try
                 {
                     ZoneTool zt = Singleton<ZoneTool>.instance;
-                  //WriteLog("About to try setting Zone Tool Mode to Select. zt.mode: " + zt.m_mode);
+                    //WriteLog("About to try setting Zone Tool Mode to Select. zt.mode: " + zt.m_mode);
                     zt.m_mode = ZoneTool.Mode.Select;
-                  //WriteLog("Value  of Zone Tool Mode. zt.m_mode: " + zt.m_mode);
+                    //WriteLog("Value  of Zone Tool Mode. zt.m_mode: " + zt.m_mode);
                 }
                 catch (Exception ex)
                 {
@@ -1269,18 +1327,10 @@ namespace AnotherRoadUpdateTool
         private void SetServicesEnabled()
         {
             //WriteLog("Entering: SetServicesEnabled m_selectable: " + m_selectable);
-
             try
             {
                 m_selectable = false;
                 lSelectable.text = m_updatetool + m_unavailable;
-
-                //If we are not in a city mode, exit
-                if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
-                {
-                    plServices.Disable();
-                    return;
-                }
 
                 //do we have at least one service type selected
                 if (services.Any(o => o.isChecked == true)) { }
@@ -1288,7 +1338,6 @@ namespace AnotherRoadUpdateTool
                     return;
 
                 //ok all checks complete
-                plServices.Enable();
                 m_selectable = true;
                 lSelectable.text = m_updatetool + m_available;
             }
@@ -1296,64 +1345,39 @@ namespace AnotherRoadUpdateTool
             {
                 WriteError("Error in SetServicesEnabled Exception: ", ex);
             }
-
             //WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
         }
 
         private void SetTerrainEnabled()
         {
             //WriteLog("Entering: SetTerrainEnabled m_selectable: " + m_selectable);
-
             try
             {
-                if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
-                {
-                    //ok all checks complete
-                    plTerrain.Enable();
-                    m_selectable = true;
-                    lSelectable.text = m_updatetool + m_available;
-                    tfTerrainHeight.text = m_terrainHeight.RoundToNearest(2f).ToString("0.00");
-                }
-                else
-                {
-                    plTerrain.Disable();
-                    m_selectable = false;
-                    lSelectable.text = m_updatetool + m_unavailable;
-                }
+                //ok all checks complete
+                m_selectable = true;
+                lSelectable.text = m_updatetool + m_available;
+                tfTerrainHeight.text = m_terrainHeight.RoundToNearest(2f).ToString("0.00");
             }
             catch (Exception ex)
             {
                 WriteError("Error in SetTerrainEnabled Exception: ", ex);
             }
-
             //WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
         }
 
         private void SetDistrictsEnabled()
         {
-          //WriteLog("Entering: SetDistrictsEnabled m_selectable: " + m_selectable);
-
+            //WriteLog("Entering: SetDistrictsEnabled m_selectable: " + m_selectable);
             try
             {
-                if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
-                {
-                    plDistricts.Disable();
-                    m_selectable = false;
-                    lSelectable.text = m_updatetool + m_unavailable;
-                }
-                else
-                {
-                    plDistricts.Enable();
-                    m_selectable = true;
-                    lSelectable.text = m_updatetool + m_available;
-                }
+                m_selectable = true;
+                lSelectable.text = m_updatetool + m_available;
             }
             catch (Exception ex)
             {
                 WriteError("Error in SetDistrictsEnabled Exception: ", ex);
             }
-
-          //WriteLog("Leaving: SetDistrictsEnabled m_selectable: " + m_selectable);
+            //WriteLog("Leaving: SetDistrictsEnabled m_selectable: " + m_selectable);
         }
 
         private void SetUpdateEnabled()
@@ -1539,7 +1563,6 @@ namespace AnotherRoadUpdateTool
         private void UpdateDisplayedRoads(List<UICheckBox> types, List<UICheckBox> roads, string text, bool show, int xPos)
         {
             //WriteLog("Entering UpdateDisplayedRoads " + xPos);
-
             foreach (UICheckBox cb in types)
             {
                 if (cb.text != text)
@@ -1555,7 +1578,6 @@ namespace AnotherRoadUpdateTool
             else if (text.Contains("Oneway")) { DisplayCheckBoxes(roads, xPos, "Oneway", show); }
             else
                 WriteLog("Could not define this object type.");
-
             //WriteLog("Leaving UpdateDisplayedRoads");
         }
 
@@ -1703,7 +1725,7 @@ namespace AnotherRoadUpdateTool
             //do we reenble or disable chirper
             UICheckBox cb = (UICheckBox)component;
             
-          //WriteLog("Entering ServiceTypes_eventCheckChanged.Name, Value: " + cb.text + ", Value: " + value);
+            //WriteLog("Entering ServiceTypes_eventCheckChanged.Name, Value: " + cb.text + ", Value: " + value);
 
             if (cb.text == "Chirper")
             {
@@ -2468,68 +2490,19 @@ namespace AnotherRoadUpdateTool
             string log = "ApplyDistrictsChange.GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
             WriteLog(log);
 
+            DistrictManager dm = Singleton<DistrictManager>.instance;
+
+            DistrictProperties dp = new DistrictProperties();
             try
             {
-                //load the districtManager
-                DistrictManager dm = Singleton<DistrictManager>.instance;
-                District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
-
                 byte id;
-                dm.CreateDistrict(out id);
-                WriteLog("id; " + id);
-                dm.SetDistrictName((int)id, "New District");
+                bool result = dm.CreateDistrict(out id);
                 dm.AreaModified(minX, minZ, maxX, maxZ, true);
-                dm.GetDistrictArea(id, out minX, out minZ, out maxX, out maxZ);
-                string name = "District Name: " + dm.GetDistrictName((int)id) +"; id: " + id + "; DistrictsArea = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
-                WriteLog(name);
-                id = 0;
-                foreach (District d in buffer)
-                {
-                    District.Flags df = d.m_flags;
-                    dm.GetDistrictArea(id, out minX, out minZ, out maxX, out maxZ);
-                    name = "District Name: " + dm.GetDistrictName((int)id) + "; id: " + id + "; DistrictsArea = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
-                    WriteLog(name);
-                    id += 1;
-                }
             }
             catch (Exception ex)
             {
                 WriteError("Error in ApplyDistrictsChange: ", ex);
             }
-            ////load the district buffer
-            //DistrictManager dm = Singleton<DistrictManager>.instance;
-            //District[] buffer = Singleton<DistrictManager>.instance.m_districts.m_buffer;
-
-            //foreach (District d in buffer)
-            //{
-            //    //we need to see if we are in any existing districts
-            //    //we need to make sure that this was not a mouse click event
-            //    if (maxZ - minZ >= 1 && maxX - minX >= 1)
-            //    {
-            //        //we need to update the area in 120 point sections
-            //        for (int i = minZ; i <= maxZ; i++)
-            //        {
-            //            for (int j = minX; j <= maxX; j++)
-            //            {
-            //                byte id;
-            //                Singleton<DistrictManager>.instance.CreateDistrict(out id);
-            //                Singleton<DistrictManager>.instance.AreaModified(minX, minZ, maxX, maxZ, true);
-
-            //            }
-            //            //make sure we exit the loop
-            //            if (i + 1 >= maxZ)
-            //                break;
-            //            i += 119;
-            //            if (i > maxZ)
-            //                i = maxZ - 1;
-            //        }
-
-            //        string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
-            //        log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
-            //        //WriteLog(log);
-            //    }
-
-            //}
         }
 
         private int ConvertSegments(string convertTo, string convertFrom, bool test, out int totalCost, out ToolErrors errors)

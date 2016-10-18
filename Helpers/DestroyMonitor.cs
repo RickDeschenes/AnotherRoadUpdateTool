@@ -24,9 +24,9 @@ namespace AnotherRoadUpdateTool
 
         public DestroyMonitor()
         {
-            RoadUpdateTool.WriteLog("About to run Initialize().");
+            RoadUpdateTool.WriteLog("About to initialize DestroyMonitor().");
             Initialize();
-            RoadUpdateTool.WriteLog("Ran Initialize().");
+            RoadUpdateTool.WriteLog("Initialize DestroyMonitor.");
         }
 
         private void Initialize()
@@ -37,6 +37,27 @@ namespace AnotherRoadUpdateTool
             this._economyManager = Singleton<EconomyManager>.instance;
             this._coverageManager = Singleton<CoverageManager>.instance;
             this._nullAudioGroup = new AudioGroup(0, new SavedFloat("NOTEXISTINGELEMENT", Settings.gameSettingsFile, 0f, false));
+        }
+
+        public override void OnAfterSimulationTick()
+        {
+            //if we have it disabled exit
+            if (RoadUpdateTool.AutoDistroy == false)
+                return;
+            try
+            {
+                for (ushort i = (ushort)(this._simulationManager.m_currentTickIndex % 1000); i < (int)this._buildingManager.m_buildings.m_buffer.Length; i = (ushort)(i + 1000))
+                {
+                    if (this._buildingManager.m_buildings.m_buffer[i].m_flags != Building.Flags.None && (RoadUpdateTool.DemolishAbandoned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.Abandoned) != Building.Flags.None || RoadUpdateTool.DemolishBurned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.BurnedDown) != Building.Flags.None))
+                    {
+                        this.DeleteBuildingImpl(ref i, ref this._buildingManager.m_buildings.m_buffer[i]);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RoadUpdateTool.WriteError("Looping Error in Bulldozer? ", ex);
+            }
         }
 
         private void DeleteBuildingImpl(ref ushort buildingId, ref Building building)
@@ -78,24 +99,6 @@ namespace AnotherRoadUpdateTool
                 return 0;
             }
             return building.Info.m_buildingAI.GetRefundAmount(id, ref building);
-        }
-
-        public override void OnAfterSimulationTick()
-        {
-            try
-            {
-                for (ushort i = (ushort)(this._simulationManager.m_currentTickIndex % 1000); i < (int)this._buildingManager.m_buildings.m_buffer.Length; i = (ushort)(i + 1000))
-                {
-                    if (this._buildingManager.m_buildings.m_buffer[i].m_flags != Building.Flags.None && (RoadUpdateTool.DemolishAbandoned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.Abandoned) != Building.Flags.None || RoadUpdateTool.DemolishBurned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.BurnedDown) != Building.Flags.None))
-                    {
-                        this.DeleteBuildingImpl(ref i, ref this._buildingManager.m_buildings.m_buffer[i]);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                RoadUpdateTool.WriteError("Looping Error in Bulldozer? ", ex);
-            }
         }
     }
 }

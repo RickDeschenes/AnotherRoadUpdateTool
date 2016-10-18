@@ -62,7 +62,21 @@ namespace AnotherRoadUpdateTool
         private bool _Monument;
         private bool _abandoned;
         private bool _burned;
+        private bool _AllRoads;
+        private bool _AdjustAreas;
+        private bool _AdjustMoney;
+        private bool _AutoDistroy;
+        private bool _Chirper;
+
+        private int _StartMoney;
+        private int _MaxAreas;
         private double _terrainheight;
+
+        private bool _ShowDelete;
+        private bool _ShowUpdate;
+        private bool _ShowTerrain;
+        private bool _ShowServices;
+        private bool _ShowDistricts;
 
         public bool Basic { get { return _basic; } set { _basic = value; } }
         public bool Large { get { return _large; } set { _large = value; } }
@@ -113,6 +127,20 @@ namespace AnotherRoadUpdateTool
         public bool Monument { get { return _Monument; } set { _Monument = value; } }
         public bool Abandoned { get { return _abandoned; } set { _abandoned = value; } }
         public bool Burned { get { return _burned; } set { _burned = value; } }
+
+        public bool AllRoads { get { return _AllRoads; } set { _AllRoads = value; } }
+        public bool AdjustAreas { get { return _AdjustAreas; } set { _AdjustAreas = value; } }
+        public bool AdjustMoney { get { return _AdjustMoney; } set { _AdjustMoney = value; } }
+        public bool AutoDistroy { get { return _AutoDistroy; } set { _AutoDistroy = value; } }
+        public bool Chirper { get { return _Chirper; } set { _Chirper = value; } }
+        public bool ShowDelete { get { return _ShowDelete;} set { _ShowDelete = value; } }
+        public bool ShowUpdate { get { return _ShowUpdate; } set { _ShowUpdate = value; } }
+        public bool ShowTerrain { get { return _ShowTerrain; } set { _ShowTerrain = value; } }
+        public bool ShowServices { get { return _ShowServices; } set { _ShowServices = value; } }
+        public bool ShowDistricts { get { return _ShowDistricts; } set { _ShowDistricts = value; } }
+        public int StartMoney { get { return _StartMoney; } set { _StartMoney = value; } }
+        public int MaxAreas { get { return _MaxAreas; } set { _MaxAreas = value; } }
+
         public double TerrainHeight { get { return _terrainheight; } set { _terrainheight = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
@@ -195,6 +223,21 @@ namespace AnotherRoadUpdateTool
                 xml.SelectSingleNode("UserSettings/Monument").InnerText = Monument.ToString();
                 xml.SelectSingleNode("UserSettings/Abandoned").InnerText = Abandoned.ToString();
                 xml.SelectSingleNode("UserSettings/Burned").InnerText = Burned.ToString();
+
+                xml.SelectSingleNode("UserSettings/AllRoads").InnerText = AllRoads.ToString();
+                xml.SelectSingleNode("UserSettings/AdjustAreas").InnerText = AdjustAreas.ToString();
+                xml.SelectSingleNode("UserSettings/AdjustMoney").InnerText = AdjustMoney.ToString();
+                xml.SelectSingleNode("UserSettings/AutoDistroy").InnerText = AutoDistroy.ToString();
+                xml.SelectSingleNode("UserSettings/Chirper").InnerText = Chirper.ToString();
+                xml.SelectSingleNode("UserSettings/ShowDelete").InnerText = ShowDelete.ToString();
+                xml.SelectSingleNode("UserSettings/ShowUpdate").InnerText = ShowUpdate.ToString();
+                xml.SelectSingleNode("UserSettings/ShowTerrain").InnerText = ShowTerrain.ToString();
+                xml.SelectSingleNode("UserSettings/ShowServices").InnerText = ShowServices.ToString();
+                xml.SelectSingleNode("UserSettings/ShowDistricts").InnerText = ShowDistricts.ToString();
+
+                xml.SelectSingleNode("UserSettings/StartMoney").InnerText = StartMoney.ToString();
+                xml.SelectSingleNode("UserSettings/MaxAreas").InnerText = MaxAreas.ToString();
+
                 xml.SelectSingleNode("UserSettings/TerrainHeight").InnerText = TerrainHeight.ToString("0.00");
             }
             catch (Exception ex)
@@ -258,20 +301,32 @@ namespace AnotherRoadUpdateTool
             _Monument = ValidateSetting("Monument");
             _abandoned = ValidateSetting("Abandoned");
             _burned = ValidateSetting("Burned");
+            
+            _AllRoads = ValidateSetting("AllRoads");
+            _AdjustAreas = ValidateSetting("AdjustAreas");
+            _AdjustMoney = ValidateSetting("AdjustMoney");
+            _AutoDistroy = ValidateSetting("AutoDistroy");
+            _Chirper = ValidateSetting("Chirper", true);
+            _ShowDelete = ValidateSetting("ShowDelete", true);
+            _ShowUpdate = ValidateSetting("ShowUpdate", true);
+            _ShowTerrain = ValidateSetting("ShowTerrain", true);
+            _ShowServices = ValidateSetting("ShowServices", true);
+            _ShowDistricts = ValidateSetting("ShowDistricts", true);
+
+            _StartMoney = ValidateSetting("StartMoney", 150000);
+            _MaxAreas = ValidateSetting("MaxAreas", 8);
 
             _terrainheight = ValidateSetting("TerrainHeight", 0.0);
         }
 
-        private bool ValidateSetting(string node)
+        private bool ValidateSetting(string node, bool setting = false )
         {
-            //we already validated the file exists and has our node "UserSettings"
-            bool setting = false;
             //create a new node
             if (xml.SelectSingleNode("UserSettings/" + node) == null)
             {
                 XmlNode tb = xml.SelectSingleNode("UserSettings");
                 XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
-                nd.InnerText = false.ToString();
+                nd.InnerText = setting.ToString();
                 //RoadUpdateTool.WriteLog("creating a node: " + node);
                 tb.AppendChild(nd);
             }

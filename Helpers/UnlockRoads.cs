@@ -7,25 +7,14 @@ namespace AnotherRoadUpdateTool
     {
         public UnlockRoads()
         {
-            unlockRoads();
-        }
-
-        //Code used from Unlock All Roads Mod
-        private bool isRoad(ItemClass itemClass)
-        {
-            string str = itemClass.name;
-            return (str.Contains("Road") ? true : str.Contains("Highway"));
+            if (RoadUpdateTool.AllRoads == true)
+                unlockRoads();
         }
 
         public override void OnRefreshMilestones()
         {
             base.milestonesManager.UnlockMilestone("Basic Road Created");
             this.unlockRoads();
-        }
-
-        private static void setPrivateVariable<T>(object obj, string fieldName, T value)
-        {
-            obj.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(obj, value);
         }
 
         private void unlockRoads()
@@ -51,6 +40,17 @@ namespace AnotherRoadUpdateTool
                     }
                 }
             }
+        }
+
+        private bool isRoad(ItemClass itemClass)
+        {
+            string str = itemClass.name;
+            return (str.Contains("Road") ? true : str.Contains("Highway"));
+        }
+
+        private static void setPrivateVariable<T>(object obj, string fieldName, T value)
+        {
+            obj.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(obj, value);
         }
     }
 }

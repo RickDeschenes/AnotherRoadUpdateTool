@@ -12,15 +12,23 @@ namespace AnotherRoadUpdateTool
 
         public override void OnCreated(IAreas areas)
         {
-            RoadUpdateTool.WriteLog("OnCreate MaxAreas: Spaces: " + Properties.Settings.Default.MaxAreas);
             base.OnCreated(areas);
-            areas.maxAreaCount = Properties.Settings.Default.MaxAreas;
+            if (RoadUpdateTool.AdjustAreas == true)
+            {
+                RoadUpdateTool.WriteLog("OnCreate MaxAreas: Spaces: " + RoadUpdateTool.MaxAreas);
+                areas.maxAreaCount = RoadUpdateTool.MaxAreas;
+            }
         }
 
         public int SetMaxAreas(int areas)
         {
             IAreas iareas = base.areaManager;
-            iareas.maxAreaCount = areas;
+            if (RoadUpdateTool.AdjustAreas == true)
+            {
+                iareas.maxAreaCount = areas;
+            }
+            else
+                areas = iareas.maxAreaCount;
             return areas;
         }
 

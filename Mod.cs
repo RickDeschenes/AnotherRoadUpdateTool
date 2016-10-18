@@ -13,53 +13,135 @@ namespace AnotherRoadUpdateTool
 {
     public class Mod : IUserMod
     {
-        private UICheckBox cbChirperEnabled;
-        private UICheckBox cbAllRoadsEnabled;
-        private UICheckBox cbMaxAreasEnabled;
-        private UICheckBox cbStartMoneyEnabled;
+        private UICheckBox cbChirper;
+        private UICheckBox cbAllRoads;
+        private UICheckBox cbMaxAreas;
+        private UICheckBox cbStartMoney;
+        private UICheckBox cbAutoDistroy;
         private UISlider slMaxArea;
         private UITextField tfMaxArea;
         private UISlider slStartMoney;
         private UITextField tfStartMoney;
 
+        private UserSettings us = new UserSettings();
+        private UICheckBox cbDelete;
+        private UICheckBox cbUpdate;
+        private UICheckBox cbTerrain;
+        private UICheckBox cbServices;
+        private UICheckBox cbDistricts;
+        
         public string Description
         {
-            get { return "Another Road Update tool is used to take the best mods, according to me, and add them into one larger control. I also added settings and other options to allow for more persoanl flavors"; }
+            get { return "ARUT is used to take the best mods, according to me, and add them into one larger control."; }
         }
 
         public string Name
         {
-            get { return "Another Road Update Tool (Version 1.2.1500"; }
+            get { return "Another Road Update Tool - Version " + ProductVersion + ")"; }
+        }
+
+        private static string ProductVersion
+        {
+            get
+            {
+                Version ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                string var = ver.Major + "." + ver.Minor + "." + ver.Build;
+                return var;
+            }
         }
 
         public void OnSettingsUI(UIHelperBase helper)
         {
             UIHelperBase group = helper.AddGroup("ARUT Settings");
 
-            group.AddGroup("Options");
+            group.AddGroup("ARUT Options");
 
-            cbChirperEnabled = (UICheckBox)group.AddCheckbox("Chirper Toggle to Show or Hide", Properties.Settings.Default.Chirper, ShowChirper_Checked);
+            cbDelete = (UICheckBox)group.AddCheckbox("Delete panel", us.ShowDelete, ShowDelete_Checked);
+            cbDelete.tooltip = "Toggle to show or hide Delete panel";
 
-            group.AddCheckbox("All Roads Enabled", Properties.Settings.Default.AllRoads, AllRoadsEnabled_Checked);
+            cbUpdate = (UICheckBox)group.AddCheckbox("Update panel", us.ShowUpdate, ShowUpdate_Checked);
+            cbUpdate.tooltip = "Toggle to show or hide Update panel";
 
-            //set up the MAx Area
-            group.AddCheckbox("Adjust Max Areas", Properties.Settings.Default.AdjustMoney, AdjustAreas_Checked);
-            slMaxArea = (UISlider)group.AddSlider("Max Areas (1 - 25)", 1, 25, 1f, Properties.Settings.Default.MaxAreas, MaxArea_Changed);
-            tfMaxArea = (UITextField)group.AddTextfield("Max Areas", Properties.Settings.Default.MaxAreas.ToString(), MaxAreas_Changed);
+            cbTerrain = (UICheckBox)group.AddCheckbox("Terrain panel", us.ShowTerrain, ShowTerrain_Checked);
+            cbTerrain.tooltip = "Toggle to show or hide Terrain panel";
+
+            cbServices = (UICheckBox)group.AddCheckbox("Services panel", us.ShowServices, ShowServices_Checked);
+            cbServices.tooltip = "Toggle to show or hide Services panel";
+
+            cbDistricts = (UICheckBox)group.AddCheckbox("Services panel", us.ShowDistricts, ShowDistricts_Checked);
+            cbDistricts.tooltip = "Toggle to show or hide Services panel";
+
+            cbChirper = (UICheckBox)group.AddCheckbox("Chirper panel ", us.Chirper, ShowChirper_Checked);
+            cbChirper.tooltip = "Toggle to show or hide Chirper panel";
+
+            cbAllRoads = (UICheckBox)group.AddCheckbox("All Roads Enabled", us.AllRoads, AllRoadsEnabled_Checked);
+            cbAllRoads.tooltip = "Check to enable all road types.";
+
+            cbAutoDistroy = (UICheckBox)group.AddCheckbox("Enable Auto Distroy", us.AutoDistroy, AutoDistroy_Checked);
+            cbAutoDistroy.tooltip = "Check to enable Auto Distroy.";
+
+            //set up the Max Area
+            cbMaxAreas = (UICheckBox)group.AddCheckbox("Adjust Max Areas", us.AdjustAreas, AdjustAreas_Checked);
+            cbMaxAreas.tooltip = " Check to adjust Games Max Areas.";
+            slMaxArea = (UISlider)group.AddSlider("Max Areas (1 - 25)", 1, 25, 1f, us.MaxAreas, MaxArea_Changed);
+            tfMaxArea = (UITextField)group.AddTextfield("Max Areas", us.MaxAreas.ToString(), MaxAreas_Changed);
             tfMaxArea.readOnly = true;
             tfMaxArea.width = 100;
+            slMaxArea.enabled = cbMaxAreas.isChecked;
+            tfMaxArea.enabled = cbMaxAreas.isChecked;
 
-            group.AddCheckbox("Adjust Start up Money", Properties.Settings.Default.AdjustMoney, AdjustMoney_Checked);
-            slStartMoney = (UISlider)group.AddSlider("Start up Amount", 100000, 750000, 50000, (int)Properties.Settings.Default.StartMoney, StartMoney_Changed);
-            tfStartMoney = (UITextField)group.AddTextfield("Start amount", Properties.Settings.Default.StartMoney.ToString(), StartMoneys_Changed);
-            tfMaxArea.readOnly = true;
+            //Set up Start Money
+            cbStartMoney = (UICheckBox)group.AddCheckbox("Adjust Start up Money", us.AdjustMoney, AdjustMoney_Checked);
+            cbStartMoney.tooltip = " Check to adjust new Games Start up money.";
+            slStartMoney = (UISlider)group.AddSlider("Start up Amount", 100000, 750000, 50000, (int)us.StartMoney, StartMoney_Changed);
+            tfStartMoney = (UITextField)group.AddTextfield("Start amount", us.StartMoney.ToString(), StartMoneys_Changed);
+            tfStartMoney.readOnly = true;
+            slStartMoney.enabled = cbStartMoney.isChecked;
+            tfStartMoney.enabled = cbStartMoney.isChecked;
+        }
+
+        private void ShowDistricts_Checked(bool isChecked)
+        {
+            us.Districts = isChecked;
+            us.Save();
+        }
+
+        private void ShowServices_Checked(bool isChecked)
+        {
+            us.Services = isChecked;
+            us.Save();
+        }
+
+        private void ShowTerrain_Checked(bool isChecked)
+        {
+            us.Terrain = isChecked;
+            us.Save();
+        }
+
+        private void ShowUpdate_Checked(bool isChecked)
+        {
+            us.Update = isChecked;
+            us.Save();
+        }
+
+        private void ShowDelete_Checked(bool isChecked)
+        {
+            us.Delete = isChecked;
+            us.Save();
+        }
+
+        private void AutoDistroy_Checked(bool isChecked)
+        {
+            us.AutoDistroy = isChecked;
+            us.Save();
         }
 
         private void AdjustAreas_Checked(bool isChecked)
         {
-            Properties.Settings.Default.AdjustAreas = isChecked;
+            us.AdjustAreas = isChecked;
             tfMaxArea.enabled = isChecked;
             slMaxArea.enabled = isChecked;
+            us.Save();
         }
 
         private void MaxAreas_Changed(string text)
@@ -70,15 +152,17 @@ namespace AnotherRoadUpdateTool
 
         private void MaxArea_Changed(float val)
         {
-            Properties.Settings.Default.MaxAreas = (int)val;
-            tfMaxArea.text = Properties.Settings.Default.MaxAreas.ToString();
+            us.MaxAreas = (int)val;
+            tfMaxArea.text = us.MaxAreas.ToString();
+            us.Save();
         }
 
         private void AdjustMoney_Checked(bool isChecked)
         {
-            Properties.Settings.Default.AdjustAreas = isChecked;
+            us.AdjustMoney = isChecked;
             tfStartMoney.enabled = isChecked;
             slStartMoney.enabled = isChecked;
+            us.Save();
         }
 
         private void StartMoneys_Changed(string text)
@@ -89,18 +173,21 @@ namespace AnotherRoadUpdateTool
 
         private void StartMoney_Changed(float val)
         {
-            Properties.Settings.Default.StartMoney = (int)val;
-            tfStartMoney.text = Properties.Settings.Default.StartMoney.ToString();
+            us.StartMoney = (int)val;
+            tfStartMoney.text = us.StartMoney.ToString();
+            us.Save();
         }
 
         private void ShowChirper_Checked(bool isChecked)
         {
-            Properties.Settings.Default.Chirper = isChecked;
+            us.Chirper = isChecked;
+            us.Save();
         }
 
-        private void AllRoadsEnabled_Checked(bool c)
+        private void AllRoadsEnabled_Checked(bool isChecked)
         {
-            Properties.Settings.Default.AllRoads = c;
+            us.AllRoads = isChecked;
+            us.Save();
         }
     }
 
@@ -128,8 +215,8 @@ namespace AnotherRoadUpdateTool
                     var type = typeof(EconomyManager);
                     var cashAmountField = type.GetField("m_cashAmount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
-                    cashAmountField.SetValue(EconomyManager.instance, 50000000);
-                    RoadUpdateTool.WriteLog("Set Cash Amount to $500,000.00");
+                    cashAmountField.SetValue(EconomyManager.instance, RoadUpdateTool.StartMoney * 100);
+                    RoadUpdateTool.WriteLog("Set Cash Amount to " + RoadUpdateTool.StartMoney.ToString("$0.00"));
                 }
                 catch (Exception ex)
                 {
