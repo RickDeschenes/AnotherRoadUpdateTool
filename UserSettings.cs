@@ -60,6 +60,8 @@ namespace AnotherRoadUpdateTool
         private bool _Garbage;
         private bool _Beautification;
         private bool _Monument;
+        private bool _abandoned;
+        private bool _burned;
         private double _terrainheight;
 
         public bool Basic { get { return _basic; } set { _basic = value; } }
@@ -109,6 +111,8 @@ namespace AnotherRoadUpdateTool
         public bool Garbage { get { return _Garbage; } set { _Garbage = value; } }
         public bool Beautification { get { return _Beautification; } set { _Beautification = value; } }
         public bool Monument { get { return _Monument; } set { _Monument = value; } }
+        public bool Abandoned { get { return _abandoned; } set { _abandoned = value; } }
+        public bool Burned { get { return _burned; } set { _burned = value; } }
         public double TerrainHeight { get { return _terrainheight; } set { _terrainheight = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
@@ -189,7 +193,8 @@ namespace AnotherRoadUpdateTool
                 xml.SelectSingleNode("UserSettings/Garbage").InnerText = Garbage.ToString();
                 xml.SelectSingleNode("UserSettings/Beautification").InnerText = Beautification.ToString();
                 xml.SelectSingleNode("UserSettings/Monument").InnerText = Monument.ToString();
-
+                xml.SelectSingleNode("UserSettings/Abandoned").InnerText = Abandoned.ToString();
+                xml.SelectSingleNode("UserSettings/Burned").InnerText = Burned.ToString();
                 xml.SelectSingleNode("UserSettings/TerrainHeight").InnerText = TerrainHeight.ToString("0.00");
             }
             catch (Exception ex)
@@ -251,8 +256,10 @@ namespace AnotherRoadUpdateTool
             _Garbage = ValidateSetting("Garbage");
             _Beautification = ValidateSetting("Beautification");
             _Monument = ValidateSetting("Monument");
+            _abandoned = ValidateSetting("Abandoned");
+            _burned = ValidateSetting("Burned");
 
-            _terrainheight = ValidateSetting("TerrainHeight", "double");
+            _terrainheight = ValidateSetting("TerrainHeight", 0.0);
         }
 
         private bool ValidateSetting(string node)
@@ -273,7 +280,7 @@ namespace AnotherRoadUpdateTool
             return setting;
         }
 
-        private double ValidateSetting(string node, string type)
+        private double ValidateSetting(string node, double type)
         {
             //we already validated the file exists and has our node "UserSettings"
             double setting = 0.0;
@@ -290,6 +297,26 @@ namespace AnotherRoadUpdateTool
             string temp = xml.SelectSingleNode("UserSettings/" + node).InnerText;
             if (double.TryParse(temp, out setting) == false)
                 setting = 0.0;
+            return setting;
+        }
+
+        private int ValidateSetting(string node, int type)
+        {
+            //we already validated the file exists and has our node "UserSettings"
+            int setting = 1;
+            //create a new node
+            if (xml.SelectSingleNode("UserSettings/" + node) == null)
+            {
+                XmlNode tb = xml.SelectSingleNode("UserSettings");
+                XmlNode nd = xml.CreateNode(XmlNodeType.Element, node, "");
+                nd.InnerText = false.ToString();
+                //RoadUpdateTool.WriteLog("Creating a node: " + node);
+                tb.AppendChild(nd);
+            }
+            //we have a node get the value
+            string temp = xml.SelectSingleNode("UserSettings/" + node).InnerText;
+            if (int.TryParse(temp, out setting) == false)
+                setting = 1;
             return setting;
         }
 

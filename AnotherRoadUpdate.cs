@@ -84,7 +84,10 @@ namespace AnotherRoadUpdateTool
             Water = 6,
             Garbage = 7,
             Beautification = 8,
-            Monument = 9
+            Monument = 9,
+            Abandoned = 10,
+            Burned = 11,
+            Chirper = 12
         }
 
         //None = 0,
@@ -126,13 +129,34 @@ namespace AnotherRoadUpdateTool
 
         #region Variables
 
-        private object m_dataLock = new object();
-
-        private LoadMode mode;
+        #region Static
 
         //set to false once code is in production (Why not use "debug mode")
         private static bool logging = true;
         private static bool erroring = true;
+        private static bool m_delete = true;
+        private static bool m_deletelog = true;
+
+        public readonly static SavedBool DemolishAbandoned = new SavedBool("ModDemolishAbandoned", Settings.gameSettingsFile, true, true);
+        public readonly static SavedBool DemolishBurned = new SavedBool("ModDemolishBurned", Settings.gameSettingsFile, true, true);
+        
+        #endregion
+
+        #region Objects
+
+        UserSettings us = new UserSettings();
+
+        private object m_dataLock = new object();
+
+        private LoadMode mode;
+        private Chirper Chirp;
+        private UnlockRoads Roads;
+        private DestroyMonitor Dozer;
+        private MaxAreas Areas;
+
+        #endregion
+        
+        #region Private
 
         private bool m_active;
         private bool m_selectable;
@@ -210,50 +234,64 @@ namespace AnotherRoadUpdateTool
         private UICheckBox cbDistrictToggle;
         private UIDropDown ddHeights;
         private UITextField tfTerrainHeight;
-        
-        List<UICheckBox> options = new List<UICheckBox>();
-        List<UICheckBox> deletes = new List<UICheckBox>();
-        List<UICheckBox> services = new List<UICheckBox>();
-        List<UICheckBox> types = new List<UICheckBox>();
 
-        List<UICheckBox> toTypes = new List<UICheckBox>();
-        List<UICheckBox> fromTypes = new List<UICheckBox>();
-        
-        List<UICheckBox> toBasic = new List<UICheckBox>();
-        List<UICheckBox> fromBasic = new List<UICheckBox>();
+        private List<UICheckBox> options = new List<UICheckBox>();
+        private List<UICheckBox> deletes = new List<UICheckBox>();
+        private List<UICheckBox> services = new List<UICheckBox>();
+        private List<UICheckBox> types = new List<UICheckBox>();
 
-        List<UICheckBox> toLarge = new List<UICheckBox>();
-        List<UICheckBox> fromLarge = new List<UICheckBox>();
+        private List<UICheckBox> toTypes = new List<UICheckBox>();
+        private List<UICheckBox> fromTypes = new List<UICheckBox>();
 
-        List<UICheckBox> toHighway = new List<UICheckBox>();
-        List<UICheckBox> fromHighway = new List<UICheckBox>();
+        private List<UICheckBox> toBasic = new List<UICheckBox>();
+        private List<UICheckBox> fromBasic = new List<UICheckBox>();
 
-        List<UICheckBox> toMedium = new List<UICheckBox>();
-        List<UICheckBox> fromMedium = new List<UICheckBox>();
+        private List<UICheckBox> toLarge = new List<UICheckBox>();
+        private List<UICheckBox> fromLarge = new List<UICheckBox>();
 
-        List<UICheckBox> toOneway = new List<UICheckBox>();
-        List<UICheckBox> fromOneway = new List<UICheckBox>();
-        
-        #endregion
+        private List<UICheckBox> toHighway = new List<UICheckBox>();
+        private List<UICheckBox> fromHighway = new List<UICheckBox>();
+
+        private List<UICheckBox> toMedium = new List<UICheckBox>();
+        private List<UICheckBox> fromMedium = new List<UICheckBox>();
+
+        private List<UICheckBox> toOneway = new List<UICheckBox>();
+        private List<UICheckBox> fromOneway = new List<UICheckBox>();
 
         //These strings are importent in that they control the interface
         private string[] m_options = new string[] { "Updates", "Deletes", "Services", "Terrain", "Districts" };
         private string[] m_types = new string[] { "Ground", "Bridge", "Slope", "Tunnel", "Curve" };
         private string[] m_roads = new string[] { "Label ToFrom", "Basic", "Highway", "Large", "Medium", "Oneway" };
-        private string[] m_basic = new string[] { "Basic Road", "Basic Road Decoration Grass", "Basic Road Decoration Trees", "Basic Road Bicycle", "Basic Road Tram", "Gravel Road" };
+        private string[] m_basic = new string[] { "Basic Road", "Basic Road Decoration Grass", "Basic Road Decoration Trees",
+            "Basic Road Bicycle", "Basic Road Tram", "Gravel Road" };
+
         private string[] m_highway = new string[] { "Highway Barrier", "Highway", "HighwayRamp" };
-        private string[] m_large = new string[] { "Large Road", "Large Road Decoration Grass", "Large Road Decoration Trees", "Large Road Bicycle", "Large Road Bus", "Large Oneway", "Large Oneway Decoration Grass", "Large Oneway Decoration Trees" };
-        private string[] m_medium = new string[] { "Medium Road", "Medium Road Decoration Grass", "Medium Road Decoration Trees", "Medium Road Bicycle", "Medium Road Bus", "Medium Road Tram" };
-        private string[] m_oneway = new string[] { "Oneway Road", "Oneway Road Decoration Grass", "Oneway Road Decoration Trees", "Oneway Road Tram", "Tram Track", "Oneway Tram Track" };
-        private string[] m_deletes = new string[] { "Label Lines", "Roads", "B Railroads", "Highways", "B PowerLines", "Water Pipes", "B Heat Pipes", "Airplanes", "B Shipping", "Pedestrian", "B Bicycle", "Tram", "B Metro", "Label Properties", "Buildings", "Trees", "Props" };
-        private string[] m_services = new string[] { "Label Select Services", "HealthCare", "PoliceDepartment", "FireDepartment", "PublicTransport", "Education", "Electricity", "Water", "Garbage", "Beautification", "Monument" };
-        private string[] m_heights = new string[] { "0.00", "5.00", "10.00", "15.00", "20.00", "25.00", "30.00", "35.00", "40.00", "45.00", "50.00", "55.00", "60.00", "65.00", "70.00", "75.00", "80.00", "85.00", "90.00", "95.00", "100.00", "150.00", "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00", "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
-        UserSettings us = new UserSettings();
-        //Interface it = new Interface();
+        private string[] m_large = new string[] { "Large Road", "Large Road Decoration Grass", "Large Road Decoration Trees",
+            "Large Road Bicycle", "Large Road Bus", "Large Oneway", "Large Oneway Decoration Grass", "Large Oneway Decoration Trees" };
 
-        private static bool m_delete = true;
-        private static bool m_deletelog = true;
+        private string[] m_medium = new string[] { "Medium Road", "Medium Road Decoration Grass", "Medium Road Decoration Trees",
+            "Medium Road Bicycle", "Medium Road Bus", "Medium Road Tram" };
+
+        private string[] m_oneway = new string[] { "Oneway Road", "Oneway Road Decoration Grass", "Oneway Road Decoration Trees",
+            "Oneway Road Tram", "Tram Track", "Oneway Tram Track" };
+
+        private string[] m_deletes = new string[] { "Label Lines", "Roads", "B Railroads", "Highways", "B PowerLines", "Water Pipes",
+            "B Heat Pipes", "Airplanes", "B Shipping", "Pedestrian", "B Bicycle", "Tram", "B Metro", "Label Properties", "Buildings",
+            "Trees", "Props" };
+
+        private string[] m_services = new string[] {"Label Select Toggle Services", "HealthCare", "PoliceDepartment", "FireDepartment",
+            "PublicTransport", "Education", "Electricity", "Water", "Garbage", "Beautification", "Monument", "Select Options",
+            "Auto Bulldozer",  "Chirper" };
+
+        private string[] m_heights = new string[] { "0.00", "5.00", "10.00", "15.00", "20.00", "25.00", "30.00", "35.00", "40.00",
+            "45.00", "50.00", "55.00", "60.00", "65.00", "70.00", "75.00", "80.00", "85.00", "90.00", "95.00", "100.00", "150.00",
+            "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00",
+            "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
+        
+        #endregion
+
+        #endregion
 
         #endregion
 
@@ -296,6 +334,7 @@ namespace AnotherRoadUpdateTool
             }
 
             UndoList = new BindingList<UndoStroke>();
+            Dozer = new DestroyMonitor();
 
             WriteLog("ARUT OnEnable!");
             base.OnEnable();
@@ -384,7 +423,7 @@ namespace AnotherRoadUpdateTool
                     {
                         //WriteLog("Trying ApplyTerrainChange");
                         this.m_endPosition = this.m_mousePosition;
-                        //Handle Services on/off or Terrian Updates (Map mode)
+                        ////Handle Services on/off or Terrian Updates (Map mode)
                         if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                             ApplyTerrainChange();
                         //WriteLog("Tried ApplyDistrictsChange");
@@ -418,10 +457,13 @@ namespace AnotherRoadUpdateTool
 
         #endregion
 
-        public void InitGui(LoadMode _mode)
+        public void InitGui(LoadMode _mode, Chirper chirp, UnlockRoads roads)
         {
             //WriteLog("Entering InitGUI");
             mode = _mode;
+            //store a local copy of each mod
+            Chirp = chirp;
+            Roads = roads;
 
             mainButton = UIView.GetAView().FindUIComponent<UIButton>("MarqueeBulldozer");
 
@@ -446,7 +488,7 @@ namespace AnotherRoadUpdateTool
                 mainButton.eventClick += Button_Clicked;
 
                 plMain = UIView.GetAView().FindUIComponent("TSBar").AddUIComponent<UIPanel>();
-                
+
                 if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                     plMain.backgroundSprite = "GenericPanel";
                 else
@@ -456,11 +498,11 @@ namespace AnotherRoadUpdateTool
                 plMain.name = "AnotherRoadUpdateTool";
                 //Create the panels (Little like a tab view)
                 int height = CreatePanels(plMain);
-                
+
                 plMain.size = new Vector2(575, height);
 
                 string tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
-                btHelp = addButton(plMain, "¿", tooltip, 765, 260,  25, 25);
+                btHelp = addButton(plMain, "¿", tooltip, 765, 260, 25, 25);
                 btHelp.isVisible = true;
                 //btHelp.zOrder = 0;
                 btHelp.eventDoubleClick += btHelp_eventDoubleClick;
@@ -479,8 +521,9 @@ namespace AnotherRoadUpdateTool
 
                 //We can load the users last session
                 GetSettings(true);
-                //WriteLog("it.BasicRoads.Basic.name: " + it.BasicRoads.Basic.name);
-                //WriteLog("Leaving InitGUI", true);
+
+                //About to set unlockable tiles
+                Areas = new MaxAreas();
                 //WriteLog("Leaving InitGUI");
             }
         }
@@ -513,7 +556,7 @@ namespace AnotherRoadUpdateTool
                 options[(int)ops.Services].Enable();
                 options[(int)ops.Terrain].Disable();
             }
-            
+
             typ = GenerateplTypes(panel, srv, plx);
             del = srv + 40;
             ter = (int)plOptions.height;
@@ -556,7 +599,6 @@ namespace AnotherRoadUpdateTool
                 //Space out the options (We may ad building, tress, and props)
                 plx += 100;
                 options[cb].eventCheckChanged += Options_eventCheckChanged;
-                options[cb].label.eventClicked += Label_eventClicked;
                 cb += 1;
             }
 
@@ -591,7 +633,6 @@ namespace AnotherRoadUpdateTool
                 string t = "These types will be updated.";
                 types.Add(addCheckbox(plTypes, y, x + step, s, t, true));
                 types[cb].eventCheckChanged += Types_eventCheckChanged;
-                types[cb].label.eventClicked += Label_eventClicked;
                 step += 100;
                 cb += 1;
             }
@@ -649,8 +690,6 @@ namespace AnotherRoadUpdateTool
                         toTypes.Add(addCheckbox(plRoads, y, x2, s, t, true));
                         fromTypes[cb].eventCheckChanged += FromTypes_eventCheckChanged;
                         toTypes[cb].eventCheckChanged += ToTypes_eventCheckChanged;
-                        fromTypes[cb].label.eventClicked += Label_eventClicked;
-                        toTypes[cb].label.eventClicked += Label_eventClicked;
                     }
                     y += 25;
                     cb++;
@@ -705,7 +744,6 @@ namespace AnotherRoadUpdateTool
                         if (s == "Buildings" || s == "Trees" || s == "Props") { y += 25; }
                     }
                     deletes[cb].eventCheckChanged += DeleteTypes_eventCheckChanged;
-                    deletes[cb].label.eventClicked += Label_eventClicked;
                     cb += 1;
                 }
             }
@@ -724,26 +762,60 @@ namespace AnotherRoadUpdateTool
             plServices.tooltip = "Select the type of services to toggle on and off.";
 
             int cb = 0;
-            int y = 6;
+            int y = 1;
 
-            y += 20;
-
-            foreach (string s in m_services)
+            for ( int i = 0; i < m_services.Length; i++)
             {
+                string s = m_services[i];
+
                 string t = "These items will be toggled On or Off.";
-                if (s.StartsWith("Label "))
+                
+                if (s == "Auto Bulldozer")
                 {
-                    addLabel(plServices, 1, 5, s.Replace("Label ", ""), true);
+                    addLabel(plServices, y, 10, s, true);
+                    y += 25;
+                    services.Add(addCheckbox(plServices, y, 15, "Abandoned", "Check to delete abandoned buildings.", true));
+                    services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                    cb += 1;
+                    services.Add(addCheckbox(plServices, y, 150, "Burned", "Check to delete burned buildings.", true));
+                    services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                    cb += 1;
+                }
+                else if (s == "Select Options")
+                {
+                    addLabel(plServices, y, 5, s, true);
+                }
+                else if (s == "Chirper")
+                {
+                    addLabel(plServices, y, 10, s, true);
+                    y += 25;
+                    services.Add(addCheckbox(plServices, y, 15, s, "Checked to Show, unchecked to Hide Chirper.", true));
+                    services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                    cb += 1;
+                }
+                else if (s.StartsWith("Label "))
+                {
+                    addLabel(plServices, y, 5, s.Replace("Label ", ""), true);
                     t = "Check to turn on services, unchecked to turn them off.";
+                    y += 25;
                     cbToggle = addCheckbox(plServices, y, 10, "Check to turn Sevices On, Uncheck for Off.", t, true);
                 }
                 else
                 {
+                    s = m_services[i];
                     services.Add(addCheckbox(plServices, y, 15, s, t, true));
                     services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
-                    services[cb].label.eventClicked += Label_eventClicked;
+                    i++;
                     cb += 1;
+                    if (i < m_services.Length)
+                    {
+                        s = m_services[i];
+                        services.Add(addCheckbox(plServices, y, 285, s, t, true));
+                        services[cb].eventCheckChanged += ServiceTypes_eventCheckChanged;
+                        cb += 1;
+                    }
                 }
+                //WriteLog("Value and Index: " + s + ", " + cb);
                 y += 25;
             }
             //no need for this dropdown
@@ -751,7 +823,7 @@ namespace AnotherRoadUpdateTool
             plServices.size = new Vector2(panel.width, y + 25);
             //WriteLog("Leaving GenerateplServices");
         }
-        
+
         private void GenerateplTerrain(UIPanel panel, int ply, int plx)
         {
             //WriteLog("Entering GenerateplTerrain");
@@ -768,7 +840,7 @@ namespace AnotherRoadUpdateTool
             tfTerrainHeight.eventTextChanged += TerrainHeight_eventTextChanged;
 
             //Add the dropdown
-            ddHeights = addDropDown(plTerrain, 45, 1, 120, 25, "", "Select default values for Terrain Height changes.", false);
+            ddHeights = addDropDown(plTerrain, 45, 1, 120, 25, "", "Select default values for Terrain Height changes.", 350);
 
             foreach (string vl in m_heights)
             {
@@ -782,7 +854,7 @@ namespace AnotherRoadUpdateTool
 
         private void GenerateplDistricts(UIPanel panel, int ply, int plx)
         {
-            WriteLog("Entering GenerateplDistricts");
+            //WriteLog("Entering GenerateplDistricts");
 
             //Show the road type option
             plDistricts = panel.AddUIComponent<UIPanel>();
@@ -795,7 +867,7 @@ namespace AnotherRoadUpdateTool
 
             cbDistrictToggle = addCheckbox(plDistricts, 40, 15, "Checked for Create (Update), unchecked for delete", "Check to create a district, uncheck to delete", true);
 
-            WriteLog("Leaving GenerateplDistricts");
+           // WriteLog("Leaving GenerateplDistricts");
         }
 
         private void GenerateRoadPanels(UIPanel panel, ref UIPanel pFrom, ref UIPanel pTo, List<UICheckBox> lFrom, List<UICheckBox> lTo, string[] road, string name, int ply, int plx)
@@ -809,7 +881,7 @@ namespace AnotherRoadUpdateTool
             pFrom.tooltip = "Select the type of road to convert.";
             //Show the road to option
             pTo = panel.AddUIComponent<UIPanel>();
-            pTo.relativePosition = new Vector3(280, ply);
+            pTo.relativePosition = new Vector3(285, ply);
             pTo.size = new Vector2(25 * 12, panel.width / 2);
             pTo.isVisible = false;
             pTo.tooltip = "Select the type of road to convert to.";
@@ -828,8 +900,6 @@ namespace AnotherRoadUpdateTool
                 lTo.Add(addCheckbox(pTo, y, 11, s, t, true));
                 lFrom[cb].eventCheckChanged += FromRoad_eventCheckChanged;
                 lTo[cb].eventCheckChanged += ToRoad_eventCheckChanged;
-                lFrom[cb].label.eventClicked += Label_eventClicked;
-                lTo[cb].label.eventClicked += Label_eventClicked;
                 cb++;
                 y += 25;
             }
@@ -891,7 +961,7 @@ namespace AnotherRoadUpdateTool
             return cb;
         }
 
-        private UIDropDown addDropDown(UIPanel panel, int y, int x, int w, int h, string text, string tooltip, bool hidden)
+        private UIDropDown addDropDown(UIPanel panel, int y, int x, int w, int h, string text, string tooltip, int lh)
         {
             UIDropDown dd = panel.AddUIComponent<UIDropDown>();
 
@@ -902,8 +972,8 @@ namespace AnotherRoadUpdateTool
             dd.itemHover = "ListItemHover";
             dd.itemHighlight = "ListItemHighlight";
             dd.normalBgSprite = "ButtonMenu";
-            dd.listWidth = 200;
-            dd.listHeight = 350;
+            dd.listWidth = x;
+            dd.listHeight = lh;
             dd.foregroundSpriteMode = UIForegroundSpriteMode.Stretch;
             dd.popupColor = new Color32(45, 52, 61, 255);
             dd.popupTextColor = new Color32(170, 170, 170, 255);
@@ -1061,6 +1131,12 @@ namespace AnotherRoadUpdateTool
             us.Garbage = services[(int)dl.Garbage].isChecked;
             us.Beautification = services[(int)dl.Beautification].isChecked;
             us.Monument = services[(int)dl.Monument].isChecked;
+            us.Abandoned = services[(int)dl.Abandoned].isChecked;
+            us.Burned = services[(int)dl.Burned].isChecked;
+
+            Properties.Settings.Default.Chirper = services[(int)dl.Chirper].isChecked;
+
+          //WriteLog("On Exit us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
 
             us.Save();
 
@@ -1112,7 +1188,7 @@ namespace AnotherRoadUpdateTool
                 deletes[(int)p.Buildings].isChecked = us.Buildings;
                 deletes[(int)p.Trees].isChecked = us.Trees;
                 deletes[(int)p.Props].isChecked = us.Props;
-                
+
                 if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                 {
                     if (us.Services == true)
@@ -1155,6 +1231,27 @@ namespace AnotherRoadUpdateTool
                 services[(int)dl.Garbage].isChecked = us.Garbage;
                 services[(int)dl.Beautification].isChecked = us.Beautification;
                 services[(int)dl.Monument].isChecked = us.Monument;
+                services[(int)dl.Abandoned].isChecked = us.Abandoned;
+                services[(int)dl.Burned].isChecked = us.Burned;
+
+                services[(int)dl.Chirper].isChecked = Properties.Settings.Default.Chirper;
+
+              //WriteLog("On entering us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
+
+                //we need to toggle shown or not
+                Chirp.Toggle(services[(int)dl.Chirper].isChecked);
+            
+                try
+                {
+                    ZoneTool zt = Singleton<ZoneTool>.instance;
+                  //WriteLog("About to try setting Zone Tool Mode to Select. zt.mode: " + zt.m_mode);
+                    zt.m_mode = ZoneTool.Mode.Select;
+                  //WriteLog("Value  of Zone Tool Mode. zt.m_mode: " + zt.m_mode);
+                }
+                catch (Exception ex)
+                {
+                    WriteError("Error setting ZoneTool Mode to Select.", ex);
+                }
 
             }
             catch (Exception ex)
@@ -1234,7 +1331,7 @@ namespace AnotherRoadUpdateTool
 
         private void SetDistrictsEnabled()
         {
-            WriteLog("Entering: SetDistrictsEnabled m_selectable: " + m_selectable);
+          //WriteLog("Entering: SetDistrictsEnabled m_selectable: " + m_selectable);
 
             try
             {
@@ -1256,7 +1353,7 @@ namespace AnotherRoadUpdateTool
                 WriteError("Error in SetDistrictsEnabled Exception: ", ex);
             }
 
-            WriteLog("Leaving: SetDistrictsEnabled m_selectable: " + m_selectable);
+          //WriteLog("Leaving: SetDistrictsEnabled m_selectable: " + m_selectable);
         }
 
         private void SetUpdateEnabled()
@@ -1542,34 +1639,6 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
         }
 
-        private void Label_eventClicked(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            WriteLog("Entering Label_eventClicked");
-            WriteLog("Component name and parent Name: " + component.name + ":: " + component.parent.name);
-            UILabel lb = (UILabel)component;
-            WriteLog("Label name and parent Name: " + lb.text + ":: " + lb.parent.name);
-            UICheckBox cb;
-            WriteLog("UICheckBox cb initiated");
-            UIPanel pl = (UIPanel)lb.parent;
-            WriteLog("Label parent: " + pl.name);
-            int cbindex = Convert.ToInt32(lb.tabIndex);
-            foreach (var c in pl.components)
-            {
-                if (c.GetType() == typeof(UICheckBox))
-                {
-                    cb = (UICheckBox)c;
-                    WriteLog("looping through panels checkboxesName: " + cb.text + " ID: " + cb.GetInstanceID() + " Index: " + cbindex);
-                    if (cb.GetInstanceID() == cbindex)
-                    {
-                        WriteLog("CheckBox: " + cb.text);
-                        cb.isChecked = !cb.isChecked;
-                        break;
-                    }
-                }
-            }
-            WriteLog("Leaving Label_eventClicked");
-        }
-
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
         {
             //WriteLog("Entering Settings Panel eventTextChanged");
@@ -1579,7 +1648,10 @@ namespace AnotherRoadUpdateTool
             double val = 0;
 
             if (tf.text.Length == 0)
+            {
+                tf.text = "0.0";
                 return;
+            }
             if (isNumeric(value) == false)
                 return;
             if (double.TryParse(value, out val) == false)
@@ -1627,10 +1699,37 @@ namespace AnotherRoadUpdateTool
 
         private void ServiceTypes_eventCheckChanged(UIComponent component, bool value)
         {
-            //WriteLog("Entering ServiceTypes_eventCheckChanged");
+
+            //do we reenble or disable chirper
+            UICheckBox cb = (UICheckBox)component;
+            
+          //WriteLog("Entering ServiceTypes_eventCheckChanged.Name, Value: " + cb.text + ", Value: " + value);
+
+            if (cb.text == "Chirper")
+            {
+                //we need to toggle shown or not
+                if (Chirp.ToggleState != value)
+                    Chirp.Toggle(value);
+                return;
+            }
+
+            if (cb.text == "Abandoned")
+            {
+                //Toggle tha value as needed
+                if (DemolishAbandoned.@value != value)
+                    DemolishAbandoned.@value = !DemolishAbandoned.@value;
+                return;
+            }
+
+            if (cb.text == "Burned")
+            {
+                //Toggle tha value as needed
+                if (DemolishBurned.@value != value)
+                    DemolishBurned.@value = !DemolishBurned.@value;
+                return;
+            }
 
             SetServicesEnabled();
-
             //WriteLog("Leaving ServiceTypes_eventCheckChanged");
         }
 

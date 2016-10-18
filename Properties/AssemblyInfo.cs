@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany("Another Dad Software")]
 [assembly: AssemblyProduct("Another Road Update Tool")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
-[assembly: AssemblyTrademark("Another ARUT")]
+[assembly: AssemblyTrademark("Another, Anotherdad, ARUT")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible 
