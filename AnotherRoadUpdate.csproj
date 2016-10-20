@@ -53,9 +53,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnotherRoadUpdate.cs" />
+    <Compile Include="ARUT.cs" />
+    <Compile Include="Helpers\DeleteObjects.cs" />
     <Compile Include="Helpers\DestroyMonitor.cs" />
     <Compile Include="Helpers\Chirper.cs" />
+    <Compile Include="Helpers\TerrainChanges.cs" />
+    <Compile Include="Helpers\UpdateObjects.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="Helpers\MyITerrain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -63,11 +66,6 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
     <Compile Include="Helpers\UnlockAreas.cs" />
     <Compile Include="Helpers\UnlockRoads.cs" />
@@ -78,15 +76,7 @@
     <Content Include="Helpers\Dozer64.ico" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
-    <None Include="Helpers\app.config">
-      <SubType>Designer</SubType>
-    </None>
     <EmbeddedResource Include="Helpers\ARUT.pdf" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">

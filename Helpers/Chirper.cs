@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 {
     public class Chirper : ChirperExtensionBase
     {

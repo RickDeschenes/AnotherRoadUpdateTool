@@ -6,7 +6,7 @@ using ColossalFramework;
 using ICities;
 using UnityEngine;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 {
     public class DestroyMonitor : ThreadingExtensionBase
     {
@@ -24,9 +24,7 @@ namespace AnotherRoadUpdateTool
 
         public DestroyMonitor()
         {
-            RoadUpdateTool.WriteLog("About to initialize DestroyMonitor().");
             Initialize();
-            RoadUpdateTool.WriteLog("Initialize DestroyMonitor.");
         }
 
         private void Initialize()
@@ -42,13 +40,13 @@ namespace AnotherRoadUpdateTool
         public override void OnAfterSimulationTick()
         {
             //if we have it disabled exit
-            if (RoadUpdateTool.AutoDistroy == false)
+            if (ARUT.AutoDistroy == false)
                 return;
             try
             {
                 for (ushort i = (ushort)(this._simulationManager.m_currentTickIndex % 1000); i < (int)this._buildingManager.m_buildings.m_buffer.Length; i = (ushort)(i + 1000))
                 {
-                    if (this._buildingManager.m_buildings.m_buffer[i].m_flags != Building.Flags.None && (RoadUpdateTool.DemolishAbandoned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.Abandoned) != Building.Flags.None || RoadUpdateTool.DemolishBurned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.BurnedDown) != Building.Flags.None))
+                    if (this._buildingManager.m_buildings.m_buffer[i].m_flags != Building.Flags.None && (ARUT.DemolishAbandoned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.Abandoned) != Building.Flags.None || ARUT.DemolishBurned && (this._buildingManager.m_buildings.m_buffer[i].m_flags & Building.Flags.BurnedDown) != Building.Flags.None))
                     {
                         this.DeleteBuildingImpl(ref i, ref this._buildingManager.m_buildings.m_buffer[i]);
                     }
@@ -56,7 +54,7 @@ namespace AnotherRoadUpdateTool
             }
             catch (Exception ex)
             {
-                RoadUpdateTool.WriteError("Looping Error in Bulldozer? ", ex);
+                ARUT.WriteError("Looping Error in Bulldozer? ", ex);
             }
         }
 

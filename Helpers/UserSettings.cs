@@ -5,7 +5,7 @@ using System.Linq;
 using System.Xml;
 using System.Text;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 {
     internal class UserSettings
     {
@@ -242,7 +242,7 @@ namespace AnotherRoadUpdateTool
             }
             catch (Exception ex)
             {
-                RoadUpdateTool.WriteError("Error in UserSettings.Save loc: " + loc + ".", ex);
+                ARUT.WriteError("Error in UserSettings.Save loc: " + loc + ".", ex);
             }
             xml.Save(us);
         }

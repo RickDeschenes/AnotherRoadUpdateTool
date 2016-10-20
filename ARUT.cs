@@ -3,16 +3,17 @@ using System.Collections.Generic;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Diagnostics;
+using System.ComponentModel;
+using System.Text.RegularExpressions;
 using System.Threading;
 using ColossalFramework;
 using ColossalFramework.Math;
 using ColossalFramework.UI;
 using ICities;
 using UnityEngine;
-using System.Reflection;
-using System.Diagnostics;
-using System.ComponentModel;
-using System.Text.RegularExpressions;
+using AnotherRoadUpdateTool.Helpers;
 
 /// <summary>
 /// Updated from SkylinesRoadUpdate added global preferences
@@ -21,7 +22,7 @@ using System.Text.RegularExpressions;
 /// </summary>
 namespace AnotherRoadUpdateTool
 {
-    public class RoadUpdateTool : DefaultTool
+    public class ARUT : DefaultTool
     {
         #region Declarations
 
@@ -131,6 +132,8 @@ namespace AnotherRoadUpdateTool
 
         internal static UserSettings us = new UserSettings();
 
+        internal static int segcount = 0;
+
         #region Static
 
         //set to false once code is in production (Why not use "debug mode")
@@ -150,7 +153,9 @@ namespace AnotherRoadUpdateTool
 
         internal readonly static SavedBool DemolishAbandoned = new SavedBool("ModDemolishAbandoned", Settings.gameSettingsFile, true, true);
         internal readonly static SavedBool DemolishBurned = new SavedBool("ModDemolishBurned", Settings.gameSettingsFile, true, true);
-        
+
+        internal static BindingList<UndoStroke> UndoList;
+
         #endregion
 
         #region Objects
@@ -202,22 +207,13 @@ namespace AnotherRoadUpdateTool
 
         private float m_terrainHeight = 0.0f;
 
-        private List<ushort> segmentsToDelete;
-
         readonly ushort[] m_undoBuffer = Singleton<TerrainManager>.instance.UndoBuffer;
         private ushort[] m_originalHeights;
         readonly ushort[] m_backupHeights = Singleton<TerrainManager>.instance.BackupHeights;
         readonly ushort[] m_rawHeights = Singleton<TerrainManager>.instance.RawHeights;
 
         SavedInputKey m_UndoKey = new SavedInputKey(Settings.mapEditorTerrainUndo, Settings.inputSettingsFile, DefaultSettings.mapEditorTerrainUndo, true);
-
-        private int m_minX = 0;
-        private int m_maxX = 0;
-        private int m_minZ = 0;
-        private int m_maxZ = 0;
-
-        private BindingList<UndoStroke> UndoList;
-
+        
         private float m_maxArea = 400f;
 
         private UIPanel plMain;
@@ -246,13 +242,13 @@ namespace AnotherRoadUpdateTool
 
         private UIButton btHelp;
         private UIButton btHide;
+        private UIButton btValidate;
         private UIButton mainButton;
         private UICheckBox cbToggle;
         private UICheckBox cbDistrictToggle;
-        private UIDropDown ddHeights;
         private UITextField tfTerrainHeight;
-        private UIButton btClose;
-        private UILabel lTitle;
+        private UIDropDown ddNumber;
+        private UIDropDown ddDecimal;
 
         private List<UICheckBox> panels = new List<UICheckBox>();
         private List<UICheckBox> options = new List<UICheckBox>();
@@ -280,8 +276,11 @@ namespace AnotherRoadUpdateTool
 
         #endregion
 
+        #region String Arrays
+
         //These strings are importent in that they control the interface
         private string[] m_options = new string[] { "Updates", "Deletes", "Services", "Terrain", "Districts" };
+
         private string[] m_types = new string[] { "Ground", "Bridge", "Slope", "Tunnel", "Curve" };
         private string[] m_roads = new string[] { "Label ToFrom", "Basic", "Highway", "Large", "Medium", "Oneway" };
         private string[] m_basic = new string[] { "Basic Road", "Basic Road Decoration Grass", "Basic Road Decoration Trees",
@@ -311,6 +310,13 @@ namespace AnotherRoadUpdateTool
             "200.00", "250.00", "300.00", "350.00", "400.00", "450.00", "500.00", "550.00", "600.00", "650.00", "700.00", "750.00",
             "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
+        private string[] m_incraments = new string[] { "1", "10", "50", "100", "250", " 500" };
+        private int m_incrament;
+        private UIDropDown ddIncrament;
+
+
+        #endregion //String Arrays
+
         #endregion
 
         #endregion
@@ -325,6 +331,10 @@ namespace AnotherRoadUpdateTool
         {
             WriteLog("ARUT awake!");
             m_active = false;
+
+            UndoList = new BindingList<UndoStroke>();
+            Dozer = new DestroyMonitor();
+
             base.Awake();
         }
 
@@ -339,10 +349,6 @@ namespace AnotherRoadUpdateTool
             UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
 
             //setting up our backup
-            m_minX = 0;
-            m_maxX = 0;
-            m_minZ = 0;
-            m_maxZ = 0;
             m_originalHeights = new ushort[m_rawHeights.Length];
 
             for (int i = 0; i <= 1080; i++)
@@ -354,11 +360,8 @@ namespace AnotherRoadUpdateTool
                     m_originalHeights[num] = m_rawHeights[num];
                 }
             }
-
-            UndoList = new BindingList<UndoStroke>();
-            Dozer = new DestroyMonitor();
-
-            WriteLog("ARUT OnEnable!");
+            
+            //WriteLog("ARUT OnEnable!");
             base.OnEnable();
         }
 
@@ -367,7 +370,7 @@ namespace AnotherRoadUpdateTool
             if (plMain != null)
                 plMain.isVisible = false;
 
-            WriteLog("ARUT OnDisable!");
+            //WriteLog("ARUT OnDisable!");
             base.OnDisable();
         }
 
@@ -414,41 +417,47 @@ namespace AnotherRoadUpdateTool
             {
                 if (e.button == 0)
                 {
+                    //handle Updates
                     if (options[(int)ops.Updates].isChecked && plTypes.isVisible)
                     {
-                        //WriteLog("Trying ApplyUpdates mouseXY: " + m_mousePosition);
-                        //handle Updates
-                        ApplyUpdates();
-                        //WriteLog("Tried ApplyUpdates");
+                        UpdateObjects uo = new UpdateObjects(lInformation, m_startPosition, m_mousePosition, deletes, types, fromSelected, toSelected);
+                        Thread t = new Thread(new ThreadStart(uo.ApplyUpdates));
+                        t.Start();
+                        while (!t.IsAlive);
                     }
+                    //handle Deletes
                     else if (options[(int)ops.Deletes].isChecked && plDelete.isVisible)
                     {
-                        //WriteLog("Trying ApplyDeletes");
-                        //handle Updates
-                        ApplyDeletes();
-                        //WriteLog("Tried ApplyDeletes");
+                        DeleteObjects rd = new DeleteObjects(m_startPosition, m_mousePosition, deletes, types);
+                        Thread t = new Thread(new ThreadStart(rd.ApplyDeletes));
+                        t.Start();
+                        while (!t.IsAlive);
                     }
+                    //handle Services
                     else if (options[(int)ops.Services].isChecked && plServices.isVisible)
                     {
-                        //WriteLog("Trying ApplyServices");
                         if (mode != LoadMode.LoadMap || mode != LoadMode.NewMap)
                             ApplyServices();
-                        //WriteLog("Tried ApplyServices");
                     }
+                    //handle Districts
                     else if (options[(int)ops.Districts].isChecked && plDistricts.isVisible)
                     {
                         WriteLog("Trying ApplyDistrictsChange");
                         ApplyDistrictsChange();
                         WriteLog("Tried ApplyDistrictsChange");
                     }
+                    //handle Terrain
                     else if (options[(int)ops.Terrain].isChecked && plTerrain.isVisible)
                     {
-                        //WriteLog("Trying ApplyTerrainChange");
                         this.m_endPosition = this.m_mousePosition;
-                        ////Handle Services on/off or Terrian Updates (Map mode)
                         if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
-                            ApplyTerrainChange();
-                        //WriteLog("Tried ApplyDistrictsChange");
+                        {
+                            TerrainChanges tc = new TerrainChanges(m_startPosition, m_endPosition, m_terrainHeight, m_originalHeights, m_backupHeights, m_rawHeights);
+                            Thread t = new Thread(new ThreadStart(tc.ApplyTerrainChange));
+                            t.Start();
+                            while (!t.IsAlive) ;
+                        }
+                        //ApplyTerrainChange();
                     }
                     m_active = false;
                 }
@@ -522,13 +531,13 @@ namespace AnotherRoadUpdateTool
                 plMain.size = new Vector2(575, height);
 
                 string tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
-                btHelp = addButton(plMain, "¿", tooltip, 765, 260, 25, 25);
+                btHelp = addButton(plMain, "¿", tooltip, (int)plMain.height - 25, (int)plMain.width - 25, 25, 25);
                 btHelp.isVisible = true;
                 //btHelp.zOrder = 0;
                 btHelp.eventDoubleClick += btHelp_eventDoubleClick;
 
                 tooltip = "I will try to close the option panel.";
-                btHide = addButton(plMain, "Close", tooltip, 765, -285, 75, 25);
+                btHide = addButton(plMain, "Close", tooltip, (int)plMain.height - 25, 1, 75, 25);
                 btHide.isVisible = true;
                 //btHide.zOrder = 0;
                 btHide.eventClick += btHide_eventClick;
@@ -574,7 +583,7 @@ namespace AnotherRoadUpdateTool
             typ = GenerateplRoads(panel, typ, plx); //Updates
             GenerateplDelete(panel, del, plx);      //Deletes
             GenerateplServices(panel, srv, plx);    //Services
-            GenerateplTerrain(panel, ter, plx);     //Terrain
+            GenerateplTerrain(panel, ter, 60);     //Terrain
             GenerateplDistricts(panel, ter, plx);     //Districts
 
             GenerateRoadPanels(panel, ref plBasic, ref plToBasic, fromBasic, toBasic, m_basic, "Basic", typ, plx);
@@ -631,7 +640,7 @@ namespace AnotherRoadUpdateTool
                     default:
                         break;
                 }
-                WriteLog("Set option: " + s + " to: " + enable + ".");
+                //WriteLog("Set option: " + s + " to: " + enable + ".");
                 options[cb].enabled = enable;
                 options[cb].eventCheckChanged += Options_eventCheckChanged;
                 cb += 1;
@@ -867,22 +876,55 @@ namespace AnotherRoadUpdateTool
             plTerrain.isVisible = false;
             plTerrain.tooltip = "Select or enter the height desired.";
 
-            addLabel(plTerrain, 1, 1, "Enter a value into the text box to set the height", true);
-
-            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", 20, 1, 120, 25, "Use values between 2000 and 0.0", true, true);
+            int x = 1;
+            int y = 1;
+            string s = "Enter a value into the text box or use the sliders to set the height";
+            string t = "Select or enter the height desired.";
+            addLabel(plTerrain, y, x, s, t, true);
+            int w = 80;
+            int h = 25;
+            s = "Height";
+            y = 25;
+            addLabel(plTerrain, y, x, s, t, true);
+            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", y, x + 125, 120, 25, "Use values between 2000 and 0.0", true, true);
+            tfTerrainHeight.eventKeyDown += TerrainHeight_eventKeyDown;
             tfTerrainHeight.eventTextChanged += TerrainHeight_eventTextChanged;
 
-            //Add the dropdown
-            ddHeights = addDropDown(plTerrain, 45, 1, 120, 25, "", "Select default values for Terrain Height changes.", 350);
+            btValidate = addButton(plTerrain, "Validate", "Validate the number in the text field.", y, x + 125 + 120, 25, 125);
+            btValidate.isVisible = true;
+            //btValidate.color = Color.green;
+            btValidate.eventClick += Validate_eventClick;
 
-            foreach (string vl in m_heights)
-            {
-                ddHeights.AddItem(vl);
-            }
-            ddHeights.selectedIndex = 0;
-            ddHeights.eventSelectedIndexChanged += ddHeights_eventSelectedIndexChanged;
+            //Add the Sliders
+            y += 25;
+            s = "Number";
+            t = "Select the Height's " + s + " value.";
+            addLabel(plTerrain, y, x, "Numbers", t, true);
 
-            //WriteLog("Leaving GenerateplTerrain");
+            ddNumber = addDropDown(plTerrain, y, x + 125, w, h, s, t);
+            int mx = 2000;
+            for (int i = 0; i <= mx; i += 1) { ddNumber.AddItem(i.ToString()); }
+            ddNumber.selectedIndex = 0;
+            ddNumber.eventSelectedIndexChanged += Number_eventSelectedIndexChanged;
+
+            //add Incrament dropdown
+            ddIncrament = addDropDown(plTerrain, y, (x + 125 + w + 20), w + 20, h, "Incrament", "Change the Numbers incrament");
+            foreach (string vl in m_incraments) { ddIncrament.AddItem(vl); }
+            ddIncrament.selectedIndex = 0;
+            m_incrament = int.Parse(ddIncrament.selectedValue);
+            ddIncrament.eventSelectedIndexChanged += Incrament_eventSelectedIndexChanged;
+
+            y += 25;
+            s = "Decimal";
+            t = "Select the Height's " + s + " value.";
+            addLabel(plTerrain, y, x, s, t, true);
+            ddDecimal = addDropDown(plTerrain, y, x + 125, w, h, s, t);
+            ddDecimal.AddItem("0.00");
+            double max = 99;
+            for (int i = 1; i <= max; i += 1) { ddDecimal.AddItem(((double)((double)i / 100d)).ToString("0.00")); }
+            ddDecimal.selectedIndex = 0;
+            ddDecimal.eventSelectedIndexChanged += Decimal_eventSelectedIndexChanged;
+
         }
 
         private void GenerateplDistricts(UIPanel panel, int ply, int plx)
@@ -938,11 +980,14 @@ namespace AnotherRoadUpdateTool
             }
             //WriteLog("Leaving GenerateRoadPanels");
         }
-
-
+        
         #region "Adding Controls"
 
         private UILabel addLabel(UIPanel panel, int yPos, int xPos, string text, bool hidden)
+        {
+            return addLabel(panel, yPos, xPos, text, "", hidden);
+        }
+        private UILabel addLabel(UIPanel panel, int yPos, int xPos, string text, string t, bool hidden)
         {
             //WriteLog("Entering addUILabel");
             UILabel lb = panel.AddUIComponent<UILabel>();
@@ -950,6 +995,7 @@ namespace AnotherRoadUpdateTool
             lb.height = 0;
             lb.width = 80;
             lb.text = text;
+            lb.tooltip = t;
             lb.isVisible = hidden;
             //WriteLog("Leaving addUILabel");
             return lb;
@@ -993,20 +1039,20 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Leaving addCheckbox");
             return cb;
         }
-
-        private UIDropDown addDropDown(UIPanel panel, int y, int x, int w, int h, string text, string tooltip, int lh)
+        
+        private UIDropDown addDropDown(UIPanel panel, int y, int x, int w, int h, string text, string tooltip)
         {
             UIDropDown dd = panel.AddUIComponent<UIDropDown>();
 
             dd.size = new Vector2(w, h);
             dd.relativePosition = new Vector3(x, y);
             dd.listBackground = "GenericPanelLight";
-            dd.itemHeight = 32;
+            dd.itemHeight = 15;
             dd.itemHover = "ListItemHover";
             dd.itemHighlight = "ListItemHighlight";
-            dd.normalBgSprite = "ButtonMenu";
-            dd.listWidth = x;
-            dd.listHeight = lh;
+            dd.normalBgSprite = "ListItemHover";
+            dd.listWidth = 100;
+            dd.listHeight = 350;
             dd.foregroundSpriteMode = UIForegroundSpriteMode.Stretch;
             dd.popupColor = new Color32(45, 52, 61, 255);
             dd.popupTextColor = new Color32(170, 170, 170, 255);
@@ -1017,7 +1063,7 @@ namespace AnotherRoadUpdateTool
             dd.selectedIndex = 0;
             dd.textFieldPadding = new RectOffset(8, 0, 8, 0);
             dd.itemPadding = new RectOffset(14, 0, 0, 0);
-
+            
             var dropdownButton = dd.AddUIComponent<UIButton>();
             dd.triggerButton = dropdownButton;
 
@@ -1037,6 +1083,30 @@ namespace AnotherRoadUpdateTool
             dropdownButton.zOrder = 0;
             dropdownButton.textScale = 0.8f;
             return dd;
+        }
+
+        private UISlider addSlider(UIPanel panel, string name, int y, int x, int w, int h, float min, float max, float step, float defaultValue, string tooltip)
+        {
+            UISlider sl = panel.AddUIComponent<UISlider>();
+
+            sl.relativePosition = new Vector3(x, y);
+            sl.name = name;
+            sl.width = w;
+            sl.height = h;
+            sl.tooltip = tooltip;
+            sl.minValue = min;
+            sl.maxValue = max;
+            sl.stepSize = step;
+            sl.value = defaultValue;
+            sl.isVisible = true;
+            sl.color = Color.blue;
+            sl.BringToFront();
+            if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
+                sl.backgroundSprite = "SubcategoriesPanel";
+            else
+                sl.backgroundSprite = "GenericPanel";
+
+            return sl;
         }
 
         private UITextField addTextBox(UIPanel panel, string name, string text, int y, int x, int width, int height, string tooltip, bool numeric, bool allowFloats)
@@ -1076,7 +1146,7 @@ namespace AnotherRoadUpdateTool
         private UIButton addButton(UIPanel panel, string text, string tooltip, int y, int x, int w, int h)
         {
             UIButton bt = panel.AddUIComponent<UIButton>();
-            bt.relativePosition += new Vector3(x, y);
+            bt.relativePosition = new Vector3(x, y);
             bt.name = text.Replace(" ", "_");
             bt.text = text;
             bt.tooltip = tooltip;
@@ -1661,50 +1731,70 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
         }
 
+        private void Decimal_eventSelectedIndexChanged(UIComponent component, int value)
+        {
+            WriteLog("Setting Decimal terrain height value from tfTerrainHeight.text to Number.text + Decimal.text: " + tfTerrainHeight.text + " to " + ddNumber.selectedValue + ddDecimal.selectedValue.Substring(1));
+            tfTerrainHeight.text = (ddNumber.text + ddDecimal.text).ToString();
+        }
+
+        private void Number_eventSelectedIndexChanged(UIComponent component, int value)
+        {
+            WriteLog("Setting Number terrain height value from tfTerrainHeight.text to Number.text + Decimal.text: " + tfTerrainHeight.text + " to " + ddNumber.selectedValue + ddDecimal.selectedValue.Substring(1));
+            tfTerrainHeight.text = (ddNumber.text + ddDecimal.text).ToString();
+        }
+        
+        private void Incrament_eventSelectedIndexChanged(UIComponent component, int value)
+        {
+            WriteLog("Entering Incrament_eventSelectedIndexChanged: ddNumber.Lenght: " + ddNumber.items.Length + " value = " + value);
+            m_incrament = int.Parse(ddIncrament.selectedValue);
+            List<string> vls = new List<string>();
+            int mx = 2000;
+            for (int i = 0; i <= mx; i += m_incrament) { vls.Add(i.ToString()); }
+            ddNumber.items = vls.ToArray();
+            WriteLog("Exiting Incrament_eventSelectedIndexChanged: ddNumber.Lenght: " + ddNumber.items.Length);
+        }
+
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
         {
-            //WriteLog("Entering Settings Panel eventTextChanged");
-
-            UITextField tf = (UITextField)component;
-            tf.text = Regex.Replace(tf.text, "[^0-9\\.]", "");
-            double val = 0;
-
-            if (tf.text.Length == 0)
-            {
-                tf.text = "0.0";
-                return;
-            }
-            if (isNumeric(value) == false)
-                return;
-            if (double.TryParse(value, out val) == false)
-                return;
-            if ( val < 0) { val = 0; }
-            if (val > 2000) { val = 2000; }
-            
-            //WriteLog("Settings Panel eventTextChanged - setting val: " + val);
-            try
-            {
-                m_terrainHeight = (float)val;
-                tfTerrainHeight.text = val.ToString("#.##");
-            }
-            catch (Exception e)
-            {
-                WriteError(e.Message, e);
-            }
-
-            //WriteLog("Leaving SettingsPanel eventTextChanged - val: : " + val + ", Value: " + tf.text + ": " + m_terrainHeight);
+            //disable select untill validated
+            lInformation.text = "Use the Validate button to validate your unput";
         }
 
-        private void ddHeights_eventSelectedIndexChanged(UIComponent component, int value)
+        private void TerrainHeight_eventKeyDown(UIComponent component, UIKeyEventParameter eventParam)
         {
-            //WriteLog("ddHeights.items[value]: " + ddHeights.items[value]);
-            tfTerrainHeight.text = ddHeights.items[value];
-            //WriteLog("tfTerrainHeight.text: " + tfTerrainHeight.text);
+            //if ((eventParam.keycode >= KeyCode.Alpha0 && eventParam.keycode <= KeyCode.Alpha9) || eventParam.keycode <= KeyCode.Period) { }
+            //else
+            //{ eventParam = null;  }
         }
 
-        private void serviceDropdown_eventSelectedIndexChanged(UIComponent component, int value)
+        private void Validate_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-
+            string raw = tfTerrainHeight.text;
+            double val;
+            if (double.TryParse(raw, out val) == true)
+            {
+                if (val > 2000)
+                {
+                    ddNumber.selectedValue = "2000";
+                    ddDecimal.selectedValue = "0.00";
+                    tfTerrainHeight.text = "2000.00";
+                }
+                else if (val < 0)
+                {
+                    ddNumber.selectedValue = "0";
+                    ddDecimal.selectedValue = "0.00";
+                    tfTerrainHeight.text = "2000.00";
+                }
+                else
+                {
+                    int nbr = (int)val;
+                    double dec = val - nbr;
+                    ddNumber.selectedValue = nbr.ToString();
+                    ddDecimal.selectedValue = ((int)(dec * 100)).ToString();
+                    tfTerrainHeight.text = val.ToString("0.00");
+                }
+                m_terrainHeight = (float)val; 
+            }
         }
 
         private void Types_eventCheckChanged(UIComponent component, bool value)
@@ -2054,7 +2144,7 @@ namespace AnotherRoadUpdateTool
         #endregion
 
         #region "Area Selection"
-
+        
         public override void RenderOverlay(RenderManager.CameraInfo cameraInfo)
         {
             while (!Monitor.TryEnter(this.m_dataLock, SimulationManager.SYNCHRONIZE_TIMEOUT))
@@ -2118,20 +2208,6 @@ namespace AnotherRoadUpdateTool
             return;
         }
 
-        /// <summary>
-        /// Updated to set max range
-        /// </summary>
-        /// <param name="newMousePosition"></param>
-        /// <returns></returns>
-        private bool checkMaxArea(Vector3 newMousePosition)
-        {
-            if ((m_startPosition -newMousePosition).sqrMagnitude > m_maxArea * 100000)
-            {
-                return false;
-            }
-            return true;
-        }
-
         public override void SimulationStep()
         {
             while (!Monitor.TryEnter(this.m_dataLock, SimulationManager.SYNCHRONIZE_TIMEOUT))
@@ -2193,221 +2269,17 @@ namespace AnotherRoadUpdateTool
 
         #endregion
 
-        #region "Updates, Deletes, Toggles, Oh my!"
+        #region "Services Toggles and Districts, Oh my!"
 
         #region "Apply Helpers"
 
-        private bool AngleBetween(Vector3 deg1, Vector3 deg2, int compare)
+        private bool checkMaxArea(Vector3 newMousePosition)
         {
-            bool result = false;
-
-            Vector2 v1 = new Vector2(deg1.x, deg1.z);
-            Vector2 v2 = new Vector2(deg2.x, deg2.z);
-
-           // WriteLog("v1 & v2 are: " + v1 + " & " + v2);
-
-            float a1 = Vector2.Angle(new Vector2(), v1);
-            float a2 = Vector2.Angle(new Vector2(), v2);
-
-            //WriteLog("a1 & a2 are: " + a1 + " & " + a2);
-
-            float angle = Vector2.Angle(v1, v2);
-
-            //WriteLog("The angle between v1 & v2 is: " + angle);
-
-            ////the angles are based from a stright line so the 45 dergrees must be accounted for
-            //angle -= 45;
-            if (angle >= 270) { angle -= 270; }
-            if (angle >= 180) { angle -= 180; }
-            if (angle >= 90) { angle -= 90; }
-
-            //WriteLog("The angle is: " + angle);
-            result = (angle > compare);
-
-            return result;
-        }
-        
-        private IEnumerator ReleaseSegment(ushort segment)
-        {
-            ToolBase.ToolErrors errors = ToolErrors.None;
-            if (CheckSegment(segment, ref errors))
+            if ((m_startPosition - newMousePosition).sqrMagnitude > m_maxArea * 100000)
             {
-                NetManager.instance.ReleaseSegment(segment, false);
+                return false;
             }
-            yield return null;
-        }
-
-        protected void BulldozeBuildings()
-        {
-            List<ushort> buildingsToDelete = new List<ushort>();
-
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            int gridMinX = Mathf.Max((int)((minX - 16f) / 64f + 135f), 0);
-            int gridMinZ = Mathf.Max((int)((minZ - 16f) / 64f + 135f), 0);
-            int gridMaxX = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
-            int gridMaxZ = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
-
-            for (int i = gridMinZ; i <= gridMaxZ; i++)
-            {
-                for (int j = gridMinX; j <= gridMaxX; j++)
-                {
-                    ushort num5 = BuildingManager.instance.m_buildingGrid[i * 270 + j];
-                    int num6 = 0;
-                    while (num5 != 0u)
-                    {
-                        var building = BuildingManager.instance.m_buildings.m_buffer[(int)((UIntPtr)num5)];
-
-                        Vector3 position = building.m_position;
-                        float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
-                        if (positionDiff < 0f && building.m_parentBuilding <= 0)
-                        {
-                            buildingsToDelete.Add(num5);
-                        }
-                        num5 = BuildingManager.instance.m_buildings.m_buffer[(int)((UIntPtr)num5)].m_nextGridBuilding;
-                        if (++num6 >= 262144)
-                        {
-                            CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            foreach (ushort building in buildingsToDelete)
-            {
-                SimulationManager.instance.AddAction(this.ReleaseBuilding(building));
-            }
-        }
-
-        private IEnumerator ReleaseBuilding(ushort building)
-        {
-            BuildingManager.instance.ReleaseBuilding(building);
-            yield return null;
-        }
-
-        protected void BulldozeTrees()
-        {
-            List<uint> treesToDelete = new List<uint>();
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            int num = Mathf.Max((int)((minX - 8f) / 32f + 270f), 0);
-            int num2 = Mathf.Max((int)((minZ - 8f) / 32f + 270f), 0);
-            int num3 = Mathf.Min((int)((maxX + 8f) / 32f + 270f), 539);
-            int num4 = Mathf.Min((int)((maxZ + 8f) / 32f + 270f), 539);
-            for (int i = num2; i <= num4; i++)
-            {
-                for (int j = num; j <= num3; j++)
-                {
-                    uint num5 = TreeManager.instance.m_treeGrid[i * 540 + j];
-                    int num6 = 0;
-                    while (num5 != 0u)
-                    {
-                        var tree = TreeManager.instance.m_trees.m_buffer[(int)((UIntPtr)num5)];
-                        Vector3 position = tree.Position;
-                        float num7 = Mathf.Max(Mathf.Max(minX - 8f - position.x, minZ - 8f - position.z), Mathf.Max(position.x - maxX - 8f, position.z - maxZ - 8f));
-                        if (num7 < 0f)
-                        {
-
-                            treesToDelete.Add(num5);
-                        }
-                        num5 = TreeManager.instance.m_trees.m_buffer[(int)((UIntPtr)num5)].m_nextGridTree;
-                        if (++num6 >= 262144)
-                        {
-                            CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                            break;
-                        }
-                    }
-                }
-            }
-            foreach (uint tree in treesToDelete)
-            {
-                TreeManager.instance.ReleaseTree(tree);
-            }
-            TreeManager.instance.m_treesUpdated = true;
-        }
-
-        protected void BulldozeProps()
-        {
-            List<ushort> propsToDelete = new List<ushort>();
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            int num = Mathf.Max((int)((minX - 16f) / 64f + 135f), 0);
-            int num2 = Mathf.Max((int)((minZ - 16f) / 64f + 135f), 0);
-            int num3 = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
-            int num4 = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
-            for (int i = num2; i <= num4; i++)
-            {
-                for (int j = num; j <= num3; j++)
-                {
-                    ushort num5 = PropManager.instance.m_propGrid[i * 270 + j];
-                    int num6 = 0;
-                    while (num5 != 0u)
-                    {
-                        var prop = PropManager.instance.m_props.m_buffer[(int)((UIntPtr)num5)];
-                        Vector3 position = prop.Position;
-                        float num7 = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
-
-                        if (num7 < 0f)
-                        {
-                            propsToDelete.Add(num5);
-                        }
-                        num5 = PropManager.instance.m_props.m_buffer[(int)((UIntPtr)num5)].m_nextGridProp;
-                        if (++num6 >= 262144)
-                        {
-                            CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                            break;
-                        }
-                    }
-                }
-            }
-            foreach (ushort prop in propsToDelete)
-            {
-                PropManager.instance.ReleaseProp(prop);
-            }
-            PropManager.instance.m_propsUpdated = true;
-        }
-
-        private string GetMessage(ToolErrors errors)
-        {
-            string text = "";
-            if (errors == ToolErrors.None) text = "None.";
-            else if (errors == ToolErrors.OutOfArea) text += " Out of city limits!";
-            else if (errors == ToolErrors.AlreadyExists) text += " Already exists";
-            else if (errors == ToolErrors.CannotBuildOnWater) text += " Cannot build on water.";
-            else if (errors == ToolErrors.InvalidShape) text += " Invalid Shape.";
-            else if (errors == ToolErrors.NotEnoughMoney) text += " Not enough money.";
-            else if (errors == ToolErrors.TooShort) text += " Segment to short.";
-            else if (errors == ToolErrors.CannotUpgrade) text += " Cannot upgrade to this type.";
-            else text += "Ondefined error: " + errors;
-
-            return text;
-        }
-
-        protected bool ValidateSelectedArea(NetSegment segment)
-        {
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            Vector3 position = segment.m_middlePosition;
-            float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
-
-            if (positionDiff < 0f)
-            {
-                return true;
-            }
-            return false;
+            return true;
         }
 
         private bool ValidateSelectedArea(Building bd)
@@ -2427,51 +2299,60 @@ namespace AnotherRoadUpdateTool
             }
             return false;
         }
-
-        private void GetSegmentControlPoints(int segmentIndex, out NetTool.ControlPoint startPoint, out NetTool.ControlPoint middlePoint, out NetTool.ControlPoint endPoint)
+        
+        private static float ConvertCoords(float coords, bool ScreenToTerrain = true)
         {
-            //WriteLog("Entering GetSegmentControlPoints");
-            NetManager net = Singleton<NetManager>.instance;
-            startPoint = new NetTool.ControlPoint();
-            middlePoint = new NetTool.ControlPoint();
-            endPoint = new NetTool.ControlPoint();
-
-            if (segmentIndex >= net.m_segments.m_buffer.Length)
-            {
-                WriteLog("GetSegmentControlPoints:: segmentIndex >= net.m_segments.m_buffer.Length: segmentIndex: " + segmentIndex + " net.m_segments.m_buffer.Length: " + net.m_segments.m_buffer.Length);
-                return;
-            }
-
-            NetInfo prefab = net.m_segments.m_buffer[segmentIndex].Info;
-
-            startPoint.m_node = net.m_segments.m_buffer[segmentIndex].m_startNode;
-            startPoint.m_segment = 0;
-            startPoint.m_position = net.m_nodes.m_buffer[startPoint.m_node].m_position;
-            startPoint.m_direction = net.m_segments.m_buffer[segmentIndex].m_startDirection;
-            startPoint.m_elevation = net.m_nodes.m_buffer[startPoint.m_node].m_elevation;
-            startPoint.m_outside = (net.m_nodes.m_buffer[startPoint.m_node].m_flags & NetNode.Flags.Outside) != NetNode.Flags.None;
-
-            endPoint.m_node = net.m_segments.m_buffer[segmentIndex].m_endNode;
-            endPoint.m_segment = 0;
-            endPoint.m_position = net.m_nodes.m_buffer[endPoint.m_node].m_position;
-            endPoint.m_direction = -net.m_segments.m_buffer[segmentIndex].m_endDirection;
-            endPoint.m_elevation = net.m_nodes.m_buffer[endPoint.m_node].m_elevation;
-            endPoint.m_outside = (net.m_nodes.m_buffer[endPoint.m_node].m_flags & NetNode.Flags.Outside) != NetNode.Flags.None;
-            
-            middlePoint.m_node = 0;
-            middlePoint.m_segment = (ushort)segmentIndex;
-            middlePoint.m_position = startPoint.m_position + startPoint.m_direction * (prefab.GetMinNodeDistance() + 1f);
-            middlePoint.m_direction = startPoint.m_direction;
-            middlePoint.m_elevation = Mathf.Lerp(startPoint.m_elevation, endPoint.m_elevation, 0.5f);
-            middlePoint.m_outside = false;
-            //WriteLog("Leaving GetSegmentControlPoints");
+            return ScreenToTerrain ? coords / 16f + 1080 / 2 : (coords - 1080 / 2) * 16f;
         }
 
-        private string GetName(Building bd)
+        private Vector3 ConvertCoords(Vector3 Pos, bool ScreenToTerrain = true)
         {
-            InstanceID id = new InstanceID();
-            id.Building = (ushort)bd.Info.GetInstanceID();
-            return Singleton<InstanceManager>.instance.GetName(id);
+            return new Vector3
+            {
+                x = ConvertCoords(Pos.x, ScreenToTerrain),
+                z = ConvertCoords(Pos.z, ScreenToTerrain)
+            };
+        }
+
+        private void GetMinMax(out int minX, out int minZ, out int maxX, out int maxZ)
+        {
+            //get the terrain coords
+            Vector3 startm = ConvertCoords(m_startPosition, true);
+            Vector3 endm = ConvertCoords(m_endPosition, true);
+
+            //Load the values
+            float startx = startm.x;
+            float startz = startm.z;
+            float endx = endm.x;
+            float endz = endm.z;
+
+            //we need the min and max coordinates
+            float min = 0;
+            float max = 1080;
+
+            //Get the smaller X into startx and larger into endx
+            //Also not less than 0 or more then 1080
+            if (startx > endx)
+            {
+                minX = (int)Mathf.Min(Mathf.Max(endx, min), max);
+                maxX = (int)Mathf.Max(Mathf.Min(startx, max), min);
+            }
+            else
+            {
+                minX = (int)Mathf.Min(Mathf.Max(startx, min), max);
+                maxX = (int)Mathf.Max(Mathf.Min(endx, max), min);
+            }
+            //Get the smaller Z into startz and larger into endz
+            if (startz > endz)
+            {
+                minZ = (int)Mathf.Min(Mathf.Max(endz, min), max);
+                maxZ = (int)Mathf.Max(Mathf.Min(startz, max), min);
+            }
+            else
+            {
+                minZ = (int)Mathf.Min(Mathf.Max(startz, min), max);
+                maxZ = (int)Mathf.Max(Mathf.Min(endz, max), min);
+            }
         }
 
         #endregion
@@ -2503,248 +2384,6 @@ namespace AnotherRoadUpdateTool
             {
                 WriteError("Error in ApplyDistrictsChange: ", ex);
             }
-        }
-
-        private int ConvertSegments(string convertTo, string convertFrom, bool test, out int totalCost, out ToolErrors errors)
-        {
-            int num = 0;
-            totalCost = 0;
-            int tempCost = 0;
-            int issues = 0;
-            errors = 0;
-
-            StringWriter sw = new StringWriter();
-            //sw.WriteLine(String.Format("Entering ConvertObjects at {0}.", DateTime.Now.TimeOfDay));
-
-            NetInfo info = PrefabCollection<NetInfo>.FindLoaded(convertTo);
-
-            if (info == null)
-            {
-                //sw.WriteLine("Could not find the object: " + convertTo + ", aborting.");
-                return num;
-            }
-
-            NetSegment[] buffer = Singleton<NetManager>.instance.m_segments.m_buffer;
-
-            //sw.WriteLine("Filling Singleton<NetManager>.instance.m_segments.m_buffer. Found: " + buffer.Length);
-
-            for (int i = 0; i < buffer.Length - 1; i++)
-            {
-                NetSegment segment = buffer[i];
-
-                //Validate in selected area
-                if (segment.Info == null)
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is Null.", segment.Info.name));
-                }
-                else if (!segment.Info.name.Contains(convertFrom))
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is not a converting item.", segment.Info.name));
-                }
-                else if (ValidateSelectedArea(segment) == false)
-                {
-                    //sw.WriteLine(String.Format("Segment {0} is not in the selected area.", segment.Info.name));
-                }
-                else
-                {
-                    bool skip = false;
-                    //Are we not equal
-                    bool Curved = AngleBetween(segment.m_startDirection, segment.m_endDirection, 1);
-
-                    string seg = segment.Info.name;
-
-                    NetTool.ControlPoint point;
-                    NetTool.ControlPoint point2;
-                    NetTool.ControlPoint point3;
-
-                    bool Bridge = seg.Contains("Bridge ") == true;
-                    bool Slope = seg.Contains("Slope ") == true;
-                    bool Tunnel = seg.Contains("Tunnel ") == true;
-                    bool Ground = types[(int)tp.Ground].isChecked;
-                    //sw.WriteLine(String.Format("Ground: {0}; Bridge: {1}; Slope: {2}; Tunnel: {3}; Curved: {4}", Ground, Bridge, Slope, Tunnel, Curved));
-
-                    // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
-                    if (Ground == false && (Bridge || Slope || Tunnel || Curved)) { skip = true; }
-                    else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; }
-                    else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; }
-                    else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; }
-                    else if (types[(int)tp.Curve].isChecked == false && Curved) { skip = true; }
-
-                    //sw.WriteLine(segment.Info.name + " converting to " + convertTo + ".");
-                    //sw.WriteLine("About to call GetSegmentControlPoints.\n");
-
-                    GetSegmentControlPoints(i, out point, out point2, out point3);
-                    bool visualize = false;
-                    bool autoFix = true;
-                    bool needMoney = true;
-                    bool invert = false;
-                    ushort num3 = 0;
-                    ushort num4 = 0;
-                    int num5 = 0;
-                    int num6 = 0;
-
-                    //test for bad index
-                    if ((point.m_position == new Vector3()) && (point2.m_position == new Vector3()) && (point3.m_position == new Vector3())) { }
-                    else if (skip == true) { }
-                    else
-                    {
-                        try
-                        {
-                            //sw.WriteLine("About to call NetTool.Create test mode.\n");
-                            //Validate in area and other errors (no money!)
-                            errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsSimulation, 0x3e8, true, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
-                            //sw.WriteLine("Test Cost: " + num5);
-                            tempCost = num5;
-                        }
-                        catch (Exception ex)
-                        {
-                            WriteError("Error testing convert of: " + segment.Info.name + " to " + convertTo + ".", ex);
-                        }
-                        if (errors == 0)
-                        {
-                            try
-                            {
-                                errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
-                                num++;
-                                totalCost += tempCost;
-                            }
-                            catch (Exception ex)
-                            {
-                                string lenght = "Left Segment Lenght: " + Math.Abs((float)(segment.m_startLeftSegment - segment.m_endLeftSegment)).ToString();
-                                lenght += " Right Segment Lenght: " + Math.Abs((float)(segment.m_startRightSegment - segment.m_endRightSegment)).ToString();
-                                string message = "Error converting: " + segment.Info.name + " to " + convertTo + "; errors: " + errors + "; " + lenght;
-                                //sw.WriteLine(lenght);
-                                WriteError(message, ex);
-                                //sw.WriteLine(message);
-                                issues += 1;
-                                try
-                                {
-                                    //lets retry this once
-                                    errors = NetTool.CreateNode(info, point, point2, point3, NetTool.m_nodePositionsMain, 0x3e8, false, visualize, autoFix, needMoney, invert, false, 0, out num3, out num4, out num5, out num6);
-                                    num++;
-                                    totalCost += tempCost;
-
-                                }
-                                catch
-                                { //do nothing }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            //sw.WriteLine("Error test convert: " + segment.Info.name + " to " + convertTo + ". Message22: " + errors);
-                            issues += 1;
-                        }
-                    }
-                }
-            }
-            lInformation.text = "Items converted: " + num + " Total Cost: " + totalCost + " Recorded issues: " + issues;
-            //WriteLog("" + sw);
-            //UIView.RefreshAll(true);
-            base.RenderOverlay(RenderManager.instance.CurrentCameraInfo);
-            return num;
-        }
-
-        protected void DelateLanes()
-        {
-            segmentsToDelete = new List<ushort>();
-
-            var minX = this.m_startPosition.x < this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var minZ = this.m_startPosition.z < this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-            var maxX = this.m_startPosition.x > this.m_mousePosition.x ? this.m_startPosition.x : this.m_mousePosition.x;
-            var maxZ = this.m_startPosition.z > this.m_mousePosition.z ? this.m_startPosition.z : this.m_mousePosition.z;
-
-            int gridMinX = Mathf.Max((int)((minX - 16f) / 64f + 135f), 0);
-            int gridMinZ = Mathf.Max((int)((minZ - 16f) / 64f + 135f), 0);
-            int gridMaxX = Mathf.Min((int)((maxX + 16f) / 64f + 135f), 269);
-            int gridMaxZ = Mathf.Min((int)((maxZ + 16f) / 64f + 135f), 269);
-
-            //string xy = "Values gridMinX, gridMinZ, gridMaxX, gridMaxY: " + gridMinX + ", " + gridMinZ + ", " + gridMaxX + ", " + gridMaxZ;
-            //WriteLog("About to loop: " + xy);
-
-            for (int i = gridMinZ; i <= gridMaxZ; i++)
-            {
-                for (int j = gridMinX; j <= gridMaxX; j++)
-                {
-                    try
-                    {
-                        //WriteLog("In the for loops ");
-                        ushort num5 = NetManager.instance.m_segmentGrid[i * 270 + j];
-                        int num6 = 0;
-                        bool skip = false;
-                        while (num5 != 0u)
-                        {
-                            //WriteLog("In the while ");
-                            var segment = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)];
-
-                            bool curved = (segment.m_cornerAngleEnd != segment.m_cornerAngleStart);
-
-                            //WriteLog("Segment name: " + segment.Info.name + " Service :" + segment.Info.GetService());
-                            //WriteLog("m_startDirection: " + segment.m_startDirection + " m_endDirection: " + segment.m_endDirection);
-                            //WriteLog("m_cornerAngleEnd: " + segment.m_cornerAngleEnd + " m_cornerAngleStart: " + segment.m_cornerAngleStart);
-                            //WriteLog("m_startLeftSegment: " + segment.m_startLeftSegment + " m_startRightSegment: " + segment.m_startRightSegment);
-                            //WriteLog("m_endLeftSegment: " + segment.m_endRightSegment + " m_endRightSegment: " + segment.m_endRightSegment);
-
-                            Vector3 position = segment.m_middlePosition;
-                            float positionDiff = Mathf.Max(Mathf.Max(minX - 16f - position.x, minZ - 16f - position.z), Mathf.Max(position.x - maxX - 16f, position.z - maxZ - 16f));
-
-                            if (positionDiff < 0f)
-                            {
-                                string seg = segment.Info.name;
-                                // we need to handle Ground, Bridge, Elevated, Slope, Tunnel, railroads, Pipe, Power Lines, 
-                                if (types[(int)tp.Ground].isChecked == false && (seg.Contains("Bridge ") == false || seg.Contains("Slope ") == false || seg.Contains("Tunnel ") == false)) { skip = true; }
-                                else if (types[(int)tp.Tunnel].isChecked == false && seg.Contains("Tunnel")) { skip = true; }
-                                else if (types[(int)tp.Bridge].isChecked == false && seg.Contains("Elevated")) { skip = true; }
-                                else if (types[(int)tp.Slope].isChecked == false && seg.Contains("Slope")) { skip = true; }
-                                else if ((types[(int)tp.Curve].isChecked == false && curved)) { skip = true; }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Pedestrian ")) { skip = true; }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Bicycle ")) { skip = true; }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Tram ")) { skip = true; }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Metro ")) { skip = true; }
-                                else if (deletes[(int)p.Roads].isChecked == false && seg.Contains("Road")) { skip = true; }
-                                else if (deletes[(int)p.Railroads].isChecked == false && seg.Contains("Train")) { skip = true; }
-                                else if (deletes[(int)p.Highways].isChecked == false && seg.Contains("Highway")) { skip = true; }
-                                else if (deletes[(int)p.PowerLines].isChecked == false && seg.Contains("Power")) { skip = true; }
-                                else if (deletes[(int)p.WaterPipes].isChecked == false && seg.Contains("Water Pipe")) { skip = true; }
-                                else if (deletes[(int)p.HeatPipes].isChecked == false && seg.Contains("Heating Pipe")) { skip = true; }
-                                else if (deletes[(int)p.Airplanes].isChecked == false && seg.Contains("Airplane")) { skip = true; }
-                                else if (deletes[(int)p.Shipping].isChecked == false && seg.Contains("Ship")) { skip = true; }
-
-                                if (skip == false)
-                                {
-                                    segmentsToDelete.Add(num5);
-                                    //WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
-                                }
-                                else { }
-                                //WriteLog("The segment named, " + segment.Info.name + ", be deleted? " + !skip);
-                            }
-                            num5 = NetManager.instance.m_segments.m_buffer[(int)((UIntPtr)num5)].m_nextGridSegment;
-                            if (++num6 >= 262144)
-                            {
-                                CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + Environment.StackTrace);
-                                break;
-                            }
-                        }   //while (num5 != 0u)
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteError("Error in DeleteLanes segmentsToDelete (segment loop) ", ex);
-                    }
-                }   //for (int j = gridMinX; j <= gridMaxX; j++)
-            }   //for (int i = gridMinZ; i <= gridMaxZ; i++)
-
-            foreach (var segment in segmentsToDelete)
-            {
-                try
-                {
-                    SimulationManager.instance.AddAction(this.ReleaseSegment(segment));
-                }
-                catch (Exception ex)
-                {
-                    WriteError("Error in DeleteLanes segmentsToDelete (Delete loop).", ex); ;
-                }
-            }
-            NetManager.instance.m_nodesUpdated = true;
         }
 
         private void ApplyServices()
@@ -2804,229 +2443,6 @@ namespace AnotherRoadUpdateTool
             }
             //WriteLog("Leaving ApplyServices: Code not yet implamented.");
         }
-        
-        protected void ApplyUpdates()
-        {
-            //test our absolutes selected area for tiny selections and ignore them
-            string xy = Math.Abs(m_startPosition.x - m_mousePosition.x) + " : " + Math.Abs(m_startPosition.y - m_mousePosition.y);
-            if (Math.Abs(m_startPosition.x - m_mousePosition.x) < 20)
-                {
-                if (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20)
-                {
-                    //WriteLog("Math.Abs(m_startPosition.x - m_mousePosition.x) + '' : '' + Math.Abs(m_startPosition.y - m_mousePosition.y) :" + xy);
-                    //WriteLog("(Math.Abs(m_startPosition.y - m_mousePosition.y) < 20 :" + (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20));
-                    return;
-                }
-            }
-
-            //WriteLog("fromSelect & toSelect :" + fromSelected + " & " + toSelected);
-            if (fromSelected == string.Empty)
-                return;
-            if (toSelected == string.Empty)
-                return;
-            try
-            {
-                int totalCost = 0;
-                ToolBase.ToolErrors errors;
-                ConvertSegments(toSelected, fromSelected, false, out totalCost, out errors);
-            }
-            catch (Exception ex )
-            {
-                WriteError("Error in ApplyUpdates ", ex);
-            }
-        }
-
-        protected void ApplyDeletes()
-        {
-            try
-            {
-                if (deletes[(int)p.Roads].isChecked || deletes[(int)p.Railroads].isChecked || deletes[(int)p.Highways].isChecked || deletes[(int)p.PowerLines].isChecked || deletes[(int)p.WaterPipes].isChecked || deletes[(int)p.HeatPipes].isChecked || deletes[(int)p.Airplanes].isChecked || deletes[(int)p.Shipping].isChecked)
-                {
-                    DelateLanes();
-                }
-            }
-            catch (Exception ex)
-            {
-                WriteError("Error in ApplyDeletes unknown Option: ", ex);
-            }
-
-            if (deletes[(int)p.Buildings].isChecked)
-                BulldozeBuildings();
-            if (deletes[(int)p.Props].isChecked)
-                BulldozeProps();
-            if (deletes[(int)p.Trees].isChecked)
-                BulldozeTrees();
-        }
-        
-        private void ApplyTerrainChange()
-        {
-            //Make the call to update the entire area with the new height
-            ApplyBrush();
-        }
-
-        private void GetMinMax(out int minX, out int minZ, out int maxX, out int maxZ)
-        {
-            //get the terrain coords
-            Vector3 startm = ConvertCoords(m_startPosition, true);
-            Vector3 endm = ConvertCoords(m_endPosition, true);
-
-            //Load the values
-            float startx = startm.x;
-            float startz = startm.z;
-            float endx = endm.x;
-            float endz = endm.z;
-
-            //we need the min and max coordinates
-            float min = 0;
-            float max = 1080;
-
-            //Get the smaller X into startx and larger into endx
-            //Also not less than 0 or more then 1080
-            if (startx > endx)
-            {
-                minX = (int)Mathf.Min(Mathf.Max(endx, min), max);
-                maxX = (int)Mathf.Max(Mathf.Min(startx, max), min);
-            }
-            else
-            {
-                minX = (int)Mathf.Min(Mathf.Max(startx, min), max);
-                maxX = (int)Mathf.Max(Mathf.Min(endx, max), min);
-            }
-            //Get the smaller Z into startz and larger into endz
-            if (startz > endz)
-            {
-                minZ = (int)Mathf.Min(Mathf.Max(endz, min), max);
-                maxZ = (int)Mathf.Max(Mathf.Min(startz, max), min);
-            }
-            else
-            {
-                minZ = (int)Mathf.Min(Mathf.Max(startz, min), max);
-                maxZ = (int)Mathf.Max(Mathf.Min(endz, max), min);
-            }
-        }
-
-        private void ApplyBrush()
-        {
-            ushort finalHeight = 500;
-            MyITerrain mTerrain = new MyITerrain();
-            //WriteLog("m_terrainHeight: " + m_terrainHeight);
-            finalHeight = mTerrain.HeightToRaw((float)m_terrainHeight);
-            //WriteLog("finalHeight: " + finalHeight);
-
-            int minX;
-            int minZ;
-            int maxX;
-            int maxZ;
-
-            GetMinMax(out minX, out minZ, out maxX, out maxZ);
-
-            string log = "ApplyBrush - GetMinMax = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") - finalHeight: " + finalHeight;
-            //WriteLog(log);
-
-            //we need to make sure that this was not a mouse click event
-            if (maxZ - minZ >= 1 && maxX - minX >= 1)
-            {
-                for (int i = minZ; i <= maxZ; i++)
-                {
-                    for (int j = minX; j <= maxX; j++)
-                    {
-                        int num = i * 1081 + j;
-                        //We want the prior backup in the 'original'
-                        m_originalHeights[num] = m_backupHeights[num];
-                        //We want the current in the back up
-                        m_backupHeights[num] = m_rawHeights[num];
-                        //We want the new height in the new/raw
-                        m_rawHeights[num] = finalHeight;
-                    }
-                }
-                //we need to update the area in 120 point sections
-                for (int i = minZ; i <= maxZ; i++)
-                {
-                    for (int j = minX; j <= maxX; j++)
-                    {
-                        int x1 = j;
-                        int x2 = Math.Max(i + 119, maxX);
-                        int z1 = i;
-                        int z2 = Math.Max(j + 119, maxZ);
-                        TerrainModify.UpdateArea(x1, z1, x2, z2, true, false, false);
-
-                        //log = "(x1, z1) : ( x2, z2): (" + x1 + ", " + z1 + ") : (" + x2 + ", " + z2 + ")";
-                        //WriteLog("ApplyBrush: " + log);
-                        //make sure we exit the loop
-                        if (j + 1 >= maxX)
-                            break;
-                        j += 119;
-                        if (j > maxX)
-                            j = maxX - 1;
-                    }
-                    //make sure we exit the loop
-                    if (i + 1 >= maxZ)
-                        break;
-                    i += 119;
-                    if (i > maxZ)
-                        i = maxZ - 1;
-                }
-
-                m_minX = minX;
-                m_maxX = maxX;
-                m_minZ = minZ;
-                m_maxZ = maxZ;
-
-                //Store the change
-                EndStroke();
-
-                //does this redraw the screen
-                transform.Translate(new Vector3(0, 0, 0));
-
-                string coords = minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ") diff = (" + (maxX - minX) + ", " + (maxZ - minZ) + ")";
-                log = "Exiting ApplyBrush: (minX, minZ) : (maxX, maxZ) = (" + coords;
-                //WriteLog(log);
-            }
-        }
-
-        private static Vector3 SnapToTerrain(Vector3 mouse)
-        {
-            return new Vector3(Mathf.RoundToInt(mouse.x / 16f), 0f, Mathf.RoundToInt(mouse.z / 16f)) * 16f;
-        }
-
-        private static float ConvertCoords(float coords, bool ScreenToTerrain = true)
-        {
-            return ScreenToTerrain ? coords / 16f + 1080 / 2 : (coords - 1080 / 2) * 16f;
-        }
-
-        private Vector3 ConvertCoords(Vector3 Pos, bool ScreenToTerrain = true)
-        {
-            return new Vector3
-            {
-                x = ConvertCoords(Pos.x, ScreenToTerrain),
-                z = ConvertCoords(Pos.z, ScreenToTerrain)
-            };
-        }
-
-        private void EndStroke()
-        {
-            // LoadingExtension.WriteLog("Entering EndStroke");
-            //creating the undo stroke
-            UndoStroke item = default(UndoStroke);
-            item.name = "undo: " + UndoList.Count;
-            item.minX = m_minX;
-            item.maxX = m_maxX;
-            item.minZ = m_minZ;
-            item.maxZ = m_maxZ;
-            item.pointer = UndoList.Count;
-            item.rawHeights = m_rawHeights;
-            item.backupHeights = m_backupHeights;
-            item.originalHeights = m_originalHeights;
-
-            UndoList.Add(item);
-
-            m_minX = 0;
-            m_maxX = 0;
-            m_minZ = 0;
-            m_maxZ = 0;
-
-            // LoadingExtension.WriteLog("Exiting EndStroke");
-        }
 
         private void ApplyUndo()
         {
@@ -3059,11 +2475,6 @@ namespace AnotherRoadUpdateTool
                 }
             }
 
-            m_minX = 0;
-            m_maxX = 0;
-            m_minZ = 0;
-            m_maxZ = 0;
-
             ////Apply Undo
             //TerrainModify.UpdateArea(minX, minZ, maxX, maxZ, true, false, false);
             string log = "(minX, minZ) : ( maxX, maxZ): (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
@@ -3095,9 +2506,9 @@ namespace AnotherRoadUpdateTool
                 if (i > maxZ)
                     i = maxZ - 1;
             }
-
-            //does this redraw the screen
-            transform.Translate(new Vector3(0, 0, 0));
+            
+            ////does this redraw the screen
+            //transform.Translate(new Vector3(0, 0, 0));
         }
 
         #endregion

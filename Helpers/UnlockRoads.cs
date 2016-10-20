@@ -1,13 +1,13 @@
 ﻿using ICities;
 using System.Reflection;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 { 
     public class UnlockRoads : MilestonesExtensionBase
     {
         public UnlockRoads()
         {
-            if (RoadUpdateTool.AllRoads == true)
+            if (ARUT.AllRoads == true)
                 unlockRoads();
         }
 

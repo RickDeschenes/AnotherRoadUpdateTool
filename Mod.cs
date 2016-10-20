@@ -1,4 +1,5 @@
-﻿using ColossalFramework;
+﻿using AnotherRoadUpdateTool.Helpers;
+using ColossalFramework;
 using ColossalFramework.UI;
 using ICities;
 using System;
@@ -196,16 +197,16 @@ namespace AnotherRoadUpdateTool
         public static Chirper chirp = new Chirper();
         public static UnlockRoads roads = new UnlockRoads();
 
-        public RoadUpdateTool updateTool;
+        public ARUT updateTool;
 
         public override void OnLevelLoaded(LoadMode mode)
         {
             base.OnLevelLoaded(mode);
-            updateTool = FindObjectOfType<RoadUpdateTool>();
+            updateTool = FindObjectOfType<ARUT>();
             if(updateTool == null)
             {
                 GameObject gameController = GameObject.FindWithTag("GameController");
-                updateTool = gameController.AddComponent<RoadUpdateTool>();
+                updateTool = gameController.AddComponent<ARUT>();
             }
 
             if (mode == LoadMode.NewGame)
@@ -215,12 +216,12 @@ namespace AnotherRoadUpdateTool
                     var type = typeof(EconomyManager);
                     var cashAmountField = type.GetField("m_cashAmount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
-                    cashAmountField.SetValue(EconomyManager.instance, RoadUpdateTool.StartMoney * 100);
-                    RoadUpdateTool.WriteLog("Set Cash Amount to " + RoadUpdateTool.StartMoney.ToString("$0.00"));
+                    cashAmountField.SetValue(EconomyManager.instance, ARUT.StartMoney * 100);
+                    ARUT.WriteLog("Set Cash Amount to " + ARUT.StartMoney.ToString("$0.00"));
                 }
                 catch (Exception ex)
                 {
-                    RoadUpdateTool.WriteError("Error setting Cash Amount", ex);
+                    ARUT.WriteError("Error setting Cash Amount", ex);
                 }
             }
             updateTool.InitGui(mode, chirp, roads);

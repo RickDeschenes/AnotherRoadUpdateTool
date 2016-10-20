@@ -2,7 +2,7 @@
 using System;
 using UnityEngine;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 {
     public class MyITerrain : TerrainExtensionBase
     {

@@ -2,7 +2,7 @@
 using System;
 using System.Reflection;
 
-namespace AnotherRoadUpdateTool
+namespace AnotherRoadUpdateTool.Helpers
 {
     public class MaxAreas : AreasExtensionBase
     {
@@ -13,17 +13,17 @@ namespace AnotherRoadUpdateTool
         public override void OnCreated(IAreas areas)
         {
             base.OnCreated(areas);
-            if (RoadUpdateTool.AdjustAreas == true)
+            if (ARUT.AdjustAreas == true)
             {
-                RoadUpdateTool.WriteLog("OnCreate MaxAreas: Spaces: " + RoadUpdateTool.MaxAreas);
-                areas.maxAreaCount = RoadUpdateTool.MaxAreas;
+                ARUT.WriteLog("OnCreate MaxAreas: Spaces: " + ARUT.MaxAreas);
+                areas.maxAreaCount = ARUT.MaxAreas;
             }
         }
 
         public int SetMaxAreas(int areas)
         {
             IAreas iareas = base.areaManager;
-            if (RoadUpdateTool.AdjustAreas == true)
+            if (ARUT.AdjustAreas == true)
             {
                 iareas.maxAreaCount = areas;
             }
