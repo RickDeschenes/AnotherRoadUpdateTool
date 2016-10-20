@@ -197,10 +197,12 @@ namespace AnotherRoadUpdateTool
         private bool m_fromRoads;
         private bool m_updates;
         private bool m_settings;
+        private bool mouseDown;
 
         private string m_available = "available.";
         private string m_unavailable = "unavailable.";
         private string m_updatetool = "Another Road Update Tool - Selection is ";
+        private string m_defaultInfo = "Watch for additional information.";
 
         private string fromSelected = string.Empty;
         private string toSelected = string.Empty;
@@ -253,6 +255,7 @@ namespace AnotherRoadUpdateTool
         private UILabel lSelectable;
         private UILabel lInformation;
         private UILabel lHeight;
+        private UILabel lbTitle;
 
         private UIButton btHelp;
         private UIButton btHide;
@@ -323,7 +326,6 @@ namespace AnotherRoadUpdateTool
             "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
         private string[] m_incraments = new string[] { "1", "10", "50", "100", "250", " 500" };
-        private bool mouseDown;
 
         #endregion //String Arrays
 
@@ -523,10 +525,21 @@ namespace AnotherRoadUpdateTool
                 else
                     plMain.backgroundSprite = "SubcategoriesPanel";
 
-                //Create the panels (Little like a tab view)
-                int height = CreatePanels(plMain);
+                int height = 525;
 
                 plMain.size = new Vector2(575, height);
+
+                lbTitle = addLabel(plMain, 1, 1, "ARUT - Another 'Road' Update Tool", "All your Mods in one control", false);
+                lbTitle.autoSize = false;
+                lbTitle.isVisible = true;
+                lbTitle.outlineColor = Color.red;
+                lbTitle.outlineSize = 2;
+                lbTitle.bottomColor = Color.yellow;
+                lbTitle.width = plMain.width;
+                lbTitle.height =  20;
+                lbTitle.textScale = 0.9f;
+                lbTitle.textAlignment = UIHorizontalAlignment.Center;
+                lbTitle.verticalAlignment = UIVerticalAlignment.Middle;
 
                 string tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
                 btHelp = addButton(plMain, "¿", tooltip, (int)plMain.height - 25, (int)plMain.width - 25, 25, 25);
@@ -543,12 +556,16 @@ namespace AnotherRoadUpdateTool
                 plMain.eventMouseDown += Main_eventMouseDown;
                 plMain.eventMouseMove += Main_eventMouseMove;
                 plMain.eventMouseUp += Main_eventMouseUp;
+                plMain.eventSizeChanged += Main_eventSizeChanged;
 
                 plMain.relativePosition = new Vector2
                 (
                     RoadUpdateButton.relativePosition.x + RoadUpdateButton.width / 2.0f - plMain.width,
                     RoadUpdateButton.relativePosition.y - (plMain.height + 3)
                 );
+
+                //Create the panels (Little like a tab view)
+                height = CreatePanels(plMain);
 
                 //We can load the users last session
                 GetSettings();
@@ -558,47 +575,6 @@ namespace AnotherRoadUpdateTool
                 Zones = new Helpers.Zones();
                 //WriteLog("Leaving InitGUI");
             }
-        }
-
-        private void Main_eventMouseUp(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            if (mouseDown == true)
-            {
-                mouseDown = false;
-                MoveCompleted();
-            }
-        }
-
-        private void Main_eventMouseMove(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            if (mouseDown == true)
-            {
-                try
-                {
-                    // Move the top and left according to the delta amount
-                    Vector3 delta = new Vector3(eventParam.moveDelta.x, eventParam.moveDelta.y);
-                    //Just move the Panel
-                    PanelPosition.left = (int)delta.x;
-                    PanelPosition.top = (int)delta.y;
-                }
-                catch (Exception ex)
-                {
-                    WriteError("Error in MovuseMove: ", ex);
-                }
-            }
-        }
-
-        private void Main_eventMouseDown(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            mouseDown = true;
-        }
-
-        private void MoveCompleted()
-        {
-            us.SettingsHeight = PanelPosition.height;
-            us.SettingsLeft = PanelPosition.left;
-            us.SettingsTop = PanelPosition.top;
-            us.SettingsWidth = PanelPosition.width;
         }
 
         #endregion
@@ -611,60 +587,72 @@ namespace AnotherRoadUpdateTool
 
         private int CreatePanels(UIPanel panel)
         {
-            //WriteLog("Entering CreatePanels");
             int plx = 1;
-            int ply = 1;
-            int srv = 75;
-            int del = 75;
-            int ter = 75;
-            int typ = 100;
+            int options = 20;
+            int services = 0;
+            int terrain = 0;
+            int types = 0;
+            int roads = 0;
 
-            srv = GenerateOptions(panel, ply, plx);
+            services = GenerateOptions(panel, options, plx);    //Options
+            types = GenerateplTypes(panel, services, plx);      //Types
+            roads = GenerateplRoads(panel, types, plx);         //Updates
+            GenerateplDelete(panel, types, plx);                //Deletes
+            GenerateplServices(panel, services, plx);           //Services
+            GenerateplTerrain(panel, services, plx);            //Terrain
+            GenerateplDistricts(panel, terrain, plx);           //Districts
 
-            typ = GenerateplTypes(panel, srv, plx);
-            del = srv + 40;
-            ter = (int)plOptions.height;
-            //WriteLog("typ = " +  typ + " srv = " +  srv + " del = " +  del);
+            GenerateRoadPanels(panel, ref plBasic, ref plToBasic, fromBasic, toBasic, m_basic, "Basic", roads, plx);
+            GenerateRoadPanels(panel, ref plHighway, ref plToHighway, fromHighway, toHighway, m_highway, "Highway", roads, plx);
+            GenerateRoadPanels(panel, ref plLarge, ref plToLarge, fromLarge, toLarge, m_large, "Large", roads, plx);
+            GenerateRoadPanels(panel, ref plMedium, ref plToMedium, fromMedium, toMedium, m_medium, "Medium", roads, plx);
+            GenerateRoadPanels(panel, ref plOneway, ref plToOneway, fromOneway, toOneway, m_oneway, "Oneway", roads, plx);
 
-            typ = GenerateplRoads(panel, typ, plx); //Updates
-            GenerateplDelete(panel, del, plx);      //Deletes
-            GenerateplServices(panel, srv, plx);    //Services
-            GenerateplTerrain(panel, ter, 60);     //Terrain
-            GenerateplDistricts(panel, ter, plx);     //Districts
+            WriteLog("services = " + services);
+            WriteLog("types = " + types);
+            WriteLog("terrain = " + terrain);
+            WriteLog("deletes = " + deletes);
+            WriteLog("roads = " + roads);
 
-            GenerateRoadPanels(panel, ref plBasic, ref plToBasic, fromBasic, toBasic, m_basic, "Basic", typ, plx);
-            GenerateRoadPanels(panel, ref plHighway, ref plToHighway, fromHighway, toHighway, m_highway, "Highway", typ, plx);
-            GenerateRoadPanels(panel, ref plLarge, ref plToLarge, fromLarge, toLarge, m_large, "Large", typ, plx);
-            GenerateRoadPanels(panel, ref plMedium, ref plToMedium, fromMedium, toMedium, m_medium, "Medium", typ, plx);
-            GenerateRoadPanels(panel, ref plOneway, ref plToOneway, fromOneway, toOneway, m_oneway, "Oneway", typ, plx);
+            WriteLog("plOptions.size = " + plOptions.size);
+            WriteLog("plTypes.size = " + plTypes.size);
+            WriteLog("plRoads.size = " + plRoads.size);
+            WriteLog("plServices.size = " + plServices.size);
+            WriteLog("plTerrain.size = " + plTerrain.size);
+            WriteLog("plDistricts.size = " + plDistricts.size);
+            WriteLog("plMain.size = " + panel.size);
+
+            WriteLog("plOptions.position = " + plOptions.position);
+            WriteLog("plTypes.position = " + plTypes.position);
+            WriteLog("plRoads.position = " + plRoads.position);
+            WriteLog("plServices.position = " + plServices.position);
+            WriteLog("plTerrain.position = " + plTerrain.position);
+            WriteLog("plDistricts.position = " + plDistricts.position);
+            WriteLog("plMain.position = " + panel.position);
             
-            //WriteLog("Leaving CreatePanels");
-            //three rows in options, five in Road Types, 15 in Large roads
-            return 25 * (3 + 6 + 12);
+            return 525;
         }
 
         private int GenerateOptions(UIPanel panel, int ply, int plx)
         {
-            //WriteLog("Entering GenerateOptions");
-            //Show the road type option
             plOptions = panel.AddUIComponent<UIPanel>();
             plOptions.relativePosition = new Vector3(plx, ply);
             plOptions.isVisible = true;
             plOptions.tooltip = "Select the type of updates and options to perform.";
 
-            //This was the title, indent the rest
-            lSelectable = addLabel(plOptions, ply, plx, m_updatetool + m_unavailable, true);
-            ply += 20;
-            lInformation = addLabel(plOptions, ply, 1, "Details from changes.", true);
-            ply += 20;
+            int y = 1;
+            lSelectable = addLabel(plOptions, y, plx, m_updatetool + m_unavailable, true);
+            y += 25;
+            lInformation = addLabel(plOptions, y, 1, m_defaultInfo, true);
+            y += 25;
 
             int cb = 0;
             foreach (string s in m_options)
             {
                 bool enable = true;
                 string t = String.Format("Select to display the {0} options", s);
-                options.Add(addCheckbox(plOptions, ply, plx, s, t, true));
-                //Space out the options (We may ad building, tress, and props)
+                options.Add(addCheckbox(plOptions, y, plx, s, t, true));
+                //Space out the options (We may ad building, trees, and props)
                 plx += 100;
                 switch (s)
                 {
@@ -686,32 +674,29 @@ namespace AnotherRoadUpdateTool
                     default:
                         break;
                 }
-                //WriteLog("Set option: " + s + " to: " + enable + ".");
                 options[cb].enabled = enable;
                 options[cb].eventCheckChanged += Options_eventCheckChanged;
                 cb += 1;
             }
+            y += 25;
 
             //set the panal size (two rows, 50)
-            plOptions.size = new Vector2(panel.width, ply + 65);
-
-            //return the top of the Road Types and Services panels
-            //WriteLog("Leaving GenerateOptions");
-            return (int)plOptions.height;
+            plOptions.size = new Vector2(panel.width, y);
+            
+            return (int)plOptions.height + 20;
         }
 
         private int GenerateplTypes(UIPanel panel, int ply, int plx)
         {
-            //WriteLog("Entering GenerateplTypes");
-            //Show the road type option
             plTypes = panel.AddUIComponent<UIPanel>();
             plTypes.relativePosition = new Vector3(1, ply);
             plTypes.isVisible = true;
             plTypes.tooltip = "Select the line types to modify";
 
-            addLabel(plTypes, 1, 1, "Select the line types to modify", true);
+            int y = 1;
+            addLabel(plTypes, y, 1, "Select the line types to modify", true);
+            y += 25;
             int x = 5;
-            int y = 20;
             int step = 0;
             int cb = 0;
 
@@ -725,9 +710,10 @@ namespace AnotherRoadUpdateTool
                 cb += 1;
             }
             //set the panel size (two rows, 50)
-            plTypes.size = new Vector2(panel.width, 50);
-            //return the top of the Road Types, Services, and Deletes panels (add to plOptions (50 + 50))
-            return ply + (int)plTypes.height;
+            y += 20;
+            plTypes.size = new Vector2(panel.width, y);
+
+            return ply + y;
         }
 
         private int GenerateplRoads(UIPanel panel, int ply, int plx)
@@ -800,12 +786,12 @@ namespace AnotherRoadUpdateTool
 
             int cb = 0;
             int x = 15;
-            int y = 6;
+            int y = 1;
 
             //load the bulldoze road type options
-            addLabel(plDelete, y - 5, 5, "Select your delete options.", true);
+            addLabel(plDelete, y, 5, "Select your delete options.", true);
 
-            y += 15;
+            y += 20;
             foreach (string s in m_deletes)
             {
                 if (s == "Label Lines")
@@ -918,13 +904,13 @@ namespace AnotherRoadUpdateTool
             
             //Show the road type option
             plTerrain = panel.AddUIComponent<UIPanel>();
-            plTerrain.relativePosition = new Vector3(1, ply - 40);
+            plTerrain.relativePosition = new Vector3(1, ply);
             plTerrain.isVisible = false;
             plTerrain.tooltip = "Select or enter the height desired.";
 
             int x = 1;
             int y = 1;
-            int inset = 50;
+            int inset = 65;
 
             string s = "Enter a value for the new terrain height";
             string t = "Enter the height desired.";
@@ -938,7 +924,7 @@ namespace AnotherRoadUpdateTool
             s = "0.00";
             lHeight = addLabel(plTerrain, y, x + inset, s, t, true);
             lHeight.autoSize = false;
-            lHeight.width = 120;
+            lHeight.width = 100;
             lHeight.height = 50;
             lHeight.textAlignment = UIHorizontalAlignment.Right;
 
@@ -946,12 +932,12 @@ namespace AnotherRoadUpdateTool
             s = "Height";
             addLabel(plTerrain, y, x, s, t, true);
 
-            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", y, x + inset, 120, 25, "Use values between 2000 and 0.0", true, true);
+            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", y, x + inset, 100, 25, "Use values between 2000 and 0.0", true, true);
             tfTerrainHeight.horizontalAlignment = UIHorizontalAlignment.Right;
             tfTerrainHeight.eventKeyDown += TerrainHeight_eventKeyDown;
             tfTerrainHeight.eventTextChanged += TerrainHeight_eventTextChanged;
 
-            btValidate = addButton(plTerrain, "Validate", "Validate the number in the text field.", y, x + inset + 120, 125, 25);
+            btValidate = addButton(plTerrain, "Validate", "Validate the number in the text field.", y, x + inset + 105, 125, 25);
             btValidate.isVisible = true;
             btValidate.state = UIButton.ButtonState.Disabled;
             btValidate.eventClick += Validate_eventClick;
@@ -959,34 +945,10 @@ namespace AnotherRoadUpdateTool
             y += 25;
             s = "Game Height";
             t = "Click to load in the current Games set Terrain Height";
-            UIButton GameHeight = addButton(plTerrain, s, t, y, x, 75, 25);
+            UIButton GameHeight = addButton(plTerrain, s, t, y, x, 100, 25);
             GameHeight.eventClick += GameHeight_eventClick;
         }
-
-        private void GameHeight_eventClick(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            string found = "TSBar";
-            try
-            {
-                UISlicedSprite TSBar = (UISlicedSprite)UIView.GetAView().FindUIComponent("TSBar");
-                found = "OptionsBar";
-                UIPanel OptionsBar = (UIPanel)TSBar.Find("OptionsBar");
-                found = "LevelHeight";
-                UIPanel LevelHeight = (UIPanel)OptionsBar.Find("LevelHeightPanel");
-                found = "Settings";
-                UIPanel Settings = (UIPanel)LevelHeight.Find("Settings");
-                found = "Height";
-                UISlider Height = (UISlider)Settings.Find("Height");
-                found = "Parsing " + Height.value;
-
-                tfTerrainHeight.text = Height.value.ToString("0.00");
-            }
-            catch (Exception ex)
-            {
-                ARUT.WriteError("Object Not found in MyITerrain.TerrainHeight. " + found, ex);
-            }
-        }
-
+        
         private void GenerateplDistricts(UIPanel panel, int ply, int plx)
         {
             //WriteLog("Entering GenerateplDistricts");
@@ -1311,6 +1273,11 @@ namespace AnotherRoadUpdateTool
             us.AllRoads = AllRoads;
             us.AutoDistroy = AutoDistroy;
 
+            us.Left = PanelPosition.left;
+            us.Top = PanelPosition.top;
+            us.Height = PanelPosition.height;
+            us.Width = PanelPosition.width;
+
             us.MaxAreas = MaxAreas;
             us.StartMoney = StartMoney;
             //WriteLog("On Exit us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
@@ -1440,6 +1407,11 @@ namespace AnotherRoadUpdateTool
                 MaxAreas = us.MaxAreas;
                 StartMoney = us.StartMoney;
 
+                PanelPosition.left = us.Left;
+                PanelPosition.top = us.Top;
+                PanelPosition.height = us.Height;
+                PanelPosition.width = us.Width;
+
                 loc = "Chirp";
                 //we need to toggle shown or not
                 if (mode != LoadMode.LoadMap && mode != LoadMode.NewMap)
@@ -1490,12 +1462,12 @@ namespace AnotherRoadUpdateTool
             {
                 m_selectable = true;
                 lSelectable.text = m_updatetool + m_available;
-                lInformation.text = "";
+                lInformation.text = m_defaultInfo;
             }
             else
             {
                 m_selectable = false;
-                lSelectable.text = m_updatetool + m_available;
+                lSelectable.text = m_updatetool + m_unavailable;
                 lInformation.text = "Use the Validate button to validate your input";
             }           
         }
@@ -1786,6 +1758,87 @@ namespace AnotherRoadUpdateTool
         #endregion
 
         #region "Event Handlers"
+
+
+        private void Main_eventSizeChanged(UIComponent component, Vector2 value)
+        {
+            if (us.Width < 250)
+                us.Width = 250;
+            if (us.Height < 400)
+                us.Height = 400;
+            //set the values
+            if (plMain.width > us.Width)
+                plMain.width = us.Width;
+            if (plMain.height > us.Height)
+                plMain.height = us.Height;
+            lbTitle.width = plMain.width;
+        }
+
+        private void Main_eventMouseUp(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (mouseDown == true)
+            {
+                mouseDown = false;
+                MoveCompleted();
+            }
+        }
+
+        private void Main_eventMouseMove(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (mouseDown == true)
+            {
+                try
+                {
+                    // Move the top and left according to the delta amount
+                    Vector3 delta = new Vector3(eventParam.moveDelta.x, eventParam.moveDelta.y);
+                    //Just move the Panel
+                    plMain.position += delta;
+                    PanelPosition.left = (int)delta.x;
+                    PanelPosition.top = (int)delta.y;
+                }
+                catch (Exception ex)
+                {
+                    WriteError("Error in MouseMove: ", ex);
+                }
+            }
+        }
+
+        private void Main_eventMouseDown(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            mouseDown = true;
+        }
+
+        private void MoveCompleted()
+        {
+            us.Height = PanelPosition.height;
+            us.Left = PanelPosition.left;
+            us.Top = PanelPosition.top;
+            us.Width = PanelPosition.width;
+        }
+
+        private void GameHeight_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            string found = "TSBar";
+            try
+            {
+                UISlicedSprite TSBar = (UISlicedSprite)UIView.GetAView().FindUIComponent("TSBar");
+                found = "OptionsBar";
+                UIPanel OptionsBar = (UIPanel)TSBar.Find("OptionsBar");
+                found = "LevelHeight";
+                UIPanel LevelHeight = (UIPanel)OptionsBar.Find("LevelHeightPanel");
+                found = "Settings";
+                UIPanel Settings = (UIPanel)LevelHeight.Find("Settings");
+                found = "Height";
+                UISlider Height = (UISlider)Settings.Find("Height");
+                found = "Parsing " + Height.value;
+
+                tfTerrainHeight.text = Height.value.ToString("0.00");
+            }
+            catch (Exception ex)
+            {
+                ARUT.WriteError("Object Not found in MyITerrain.TerrainHeight. " + found, ex);
+            }
+        }
 
         private void btHide_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
@@ -2497,27 +2550,17 @@ namespace AnotherRoadUpdateTool
             int maxZ = undoStroke.maxZ;
             int pointer = undoStroke.pointer;
 
-            //log = "ApplyUndo = (minX, minZ) : (maxX, maxZ) (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
-            //LoadingExtension.WriteLog(log);
-
             for (int i = minZ; i <= maxZ; i++)
             {
                 for (int j = minX; j <= maxX; j++)
                 {
-                    int num = i * 1081 + j;
-                    //we want the new/raw to be the back up (un do)
-                    m_rawHeights[num] = undoStroke.backupHeights[num];
-                    //we want the prior backup to match the original (original as in one step back)
-                    m_backupHeights[num] = undoStroke.originalHeights[num];
+                    int num = i * 1081 + j;            
+                    m_rawHeights[num] = undoStroke.backupHeights[num];      //we want the new/raw to be the back up (un do)                   
+                    m_backupHeights[num] = undoStroke.originalHeights[num]; //we want the prior backup to match the original (original as in one step back)
                 }
             }
 
-            ////Apply Undo
-            //TerrainModify.UpdateArea(minX, minZ, maxX, maxZ, true, false, false);
-            string log = "(minX, minZ) : ( maxX, maxZ): (" + minX + ", " + minZ + ") : (" + maxX + ", " + maxZ + ")";
-            //LoadingExtension.WriteLog("ApplyBrush: " + log);
-
-            //we need to update the area in 120 point sections
+            //Apply Undo in 120 point sections
             for (int i = minZ; i <= maxZ; i++)
             {
                 for (int j = minX; j <= maxX; j++)
@@ -2527,8 +2570,8 @@ namespace AnotherRoadUpdateTool
                     int z1 = i;
                     int z2 = Math.Max(j + 119, maxZ);
                     TerrainModify.UpdateArea(x1, z1, x2, z2, true, false, false);
-                    log = "(x1, z1) : ( x2, z2): (" + x1 + ", " + z1 + ") : (" + x2 + ", " + z2 + ")";
-                    //LoadingExtension.WriteLog("ApplyUndo: " + log);
+                    TerrainModify.BeginUpdateArea();
+
                     //make sure we exit the loop
                     if (j + 1 >= maxX)
                         break;
@@ -2536,16 +2579,14 @@ namespace AnotherRoadUpdateTool
                     if (j > maxX)
                         j = maxX - 1;
                 }
+
                 //make sure we exit the loop
                 if (i + 1 >= maxZ)
                     break;
                 i += 119;
                 if (i > maxZ)
                     i = maxZ - 1;
-            }
-            
-            ////does this redraw the screen
-            //transform.Translate(new Vector3(0, 0, 0));
+            }            
         }
 
         #endregion

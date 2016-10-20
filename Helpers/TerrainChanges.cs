@@ -82,7 +82,7 @@ namespace AnotherRoadUpdateTool.Helpers
                         int z1 = i;
                         int z2 = Math.Max(j + 119, maxZ);
                         TerrainModify.UpdateArea(x1, z1, x2, z2, true, false, false);
-
+                        TerrainModify.BeginUpdateArea();
                         //log = "(x1, z1) : ( x2, z2): (" + x1 + ", " + z1 + ") : (" + x2 + ", " + z2 + ")";
                         //WriteLog("ApplyBrush: " + log);
                         //make sure we exit the loop

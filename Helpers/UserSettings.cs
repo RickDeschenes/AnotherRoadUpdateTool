@@ -78,6 +78,10 @@ namespace AnotherRoadUpdateTool.Helpers
         private bool _ShowServices;
         private bool _ShowDistricts;
 
+        private int _Height;
+        private int _Left;
+        private int _Top;
+        private int _Width;
         public bool Basic { get { return _basic; } set { _basic = value; } }
         public bool Large { get { return _large; } set { _large = value; } }
         public bool Highway { get { return _highway; } set { _highway = value; } }
@@ -140,7 +144,10 @@ namespace AnotherRoadUpdateTool.Helpers
         public bool ShowDistricts { get { return _ShowDistricts; } set { _ShowDistricts = value; } }
         public int StartMoney { get { return _StartMoney; } set { _StartMoney = value; } }
         public int MaxAreas { get { return _MaxAreas; } set { _MaxAreas = value; } }
-
+        public int Height { get { return _Height; } set { _Height = value; } }
+        public int Left { get { return _Left; } set { _Left = value; } }
+        public int Top { get { return _Top; } set { _Top = value; } }
+        public int Width { get { return _Width; } set { _Width = value; } }
         public double TerrainHeight { get { return _terrainheight; } set { _terrainheight = value; } }
 
         private const string fileName = "ARUTuserSettings.xml";
@@ -237,6 +244,10 @@ namespace AnotherRoadUpdateTool.Helpers
 
                 xml.SelectSingleNode("UserSettings/StartMoney").InnerText = StartMoney.ToString();
                 xml.SelectSingleNode("UserSettings/MaxAreas").InnerText = MaxAreas.ToString();
+                xml.SelectSingleNode("UserSettings/Height").InnerText = Height.ToString();
+                xml.SelectSingleNode("UserSettings/Left").InnerText = Left.ToString();
+                xml.SelectSingleNode("UserSettings/Top").InnerText = Top.ToString();
+                xml.SelectSingleNode("UserSettings/Width").InnerText = Width.ToString();
 
                 xml.SelectSingleNode("UserSettings/TerrainHeight").InnerText = TerrainHeight.ToString("0.00");
             }
@@ -315,6 +326,10 @@ namespace AnotherRoadUpdateTool.Helpers
 
             _StartMoney = ValidateSetting("StartMoney", 150000);
             _MaxAreas = ValidateSetting("MaxAreas", 8);
+            _Height = ValidateSetting("Height", 575);
+            _Left = ValidateSetting("Left", 8);
+            _Top = ValidateSetting("Top", 8);
+            _Width = ValidateSetting("Width", 525);
 
             _terrainheight = ValidateSetting("TerrainHeight", 0.0);
         }
