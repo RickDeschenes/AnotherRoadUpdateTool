@@ -59,6 +59,7 @@
     <Compile Include="Helpers\Chirper.cs" />
     <Compile Include="Helpers\TerrainChanges.cs" />
     <Compile Include="Helpers\UpdateObjects.cs" />
+    <Compile Include="Helpers\Zones.cs" />
     <Compile Include="Mod.cs" />
     <Compile Include="Helpers\MyITerrain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -70,7 +71,7 @@
     <Compile Include="Helpers\UnlockAreas.cs" />
     <Compile Include="Helpers\UnlockRoads.cs" />
     <Compile Include="Helpers\UserSettings.cs" />
-    <Compile Include="Settings.cs" />
+    <Compile Include="Properties\Settings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Helpers\Dozer64.ico" />

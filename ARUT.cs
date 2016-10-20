@@ -130,6 +130,14 @@ namespace AnotherRoadUpdateTool
 
         #region Variables
 
+        private struct Position
+        {
+            internal int top;
+            internal int left;
+            internal int height;
+            internal int width;
+        }
+
         internal static UserSettings us = new UserSettings();
 
         internal static int segcount = 0;
@@ -167,6 +175,7 @@ namespace AnotherRoadUpdateTool
         private UnlockRoads Roads;
         private DestroyMonitor Dozer;
         private MaxAreas Areas;
+        private Zones Zones;
 
         #endregion
 
@@ -192,9 +201,11 @@ namespace AnotherRoadUpdateTool
         private string m_available = "available.";
         private string m_unavailable = "unavailable.";
         private string m_updatetool = "Another Road Update Tool - Selection is ";
+
         private string fromSelected = string.Empty;
         private string toSelected = string.Empty;
 
+        private Position PanelPosition;
         private Vector3 m_startPosition;
         private Vector3 m_endPosition;
         private Vector3 m_startDirection;
@@ -206,6 +217,8 @@ namespace AnotherRoadUpdateTool
         private new float m_mouseRayLength;
 
         private float m_terrainHeight = 0.0f;
+
+        private
 
         readonly ushort[] m_undoBuffer = Singleton<TerrainManager>.instance.UndoBuffer;
         private ushort[] m_originalHeights;
@@ -239,6 +252,7 @@ namespace AnotherRoadUpdateTool
         private UILabel lProperties;
         private UILabel lSelectable;
         private UILabel lInformation;
+        private UILabel lHeight;
 
         private UIButton btHelp;
         private UIButton btHide;
@@ -247,8 +261,6 @@ namespace AnotherRoadUpdateTool
         private UICheckBox cbToggle;
         private UICheckBox cbDistrictToggle;
         private UITextField tfTerrainHeight;
-        private UIDropDown ddNumber;
-        private UIDropDown ddDecimal;
 
         private List<UICheckBox> panels = new List<UICheckBox>();
         private List<UICheckBox> options = new List<UICheckBox>();
@@ -311,9 +323,7 @@ namespace AnotherRoadUpdateTool
             "800.00", "850.00", "900.00", "950.00", "1000.00", "1500.00", "2000.00" };
 
         private string[] m_incraments = new string[] { "1", "10", "50", "100", "250", " 500" };
-        private int m_incrament;
-        private UIDropDown ddIncrament;
-
+        private bool mouseDown;
 
         #endregion //String Arrays
 
@@ -338,29 +348,15 @@ namespace AnotherRoadUpdateTool
             base.Awake();
         }
 
-        protected override void OnToolUpdate()
+        protected override void OnDestroy()
         {
-            //WriteLog("ARUT OnToolUpdate!");
-            base.OnToolUpdate();
+            SetSettings();
+            WriteLog("ARUT OnDestroy!");
+            base.OnDestroy();
         }
 
         protected override void OnEnable()
-        {
-            UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
-
-            //setting up our backup
-            m_originalHeights = new ushort[m_rawHeights.Length];
-
-            for (int i = 0; i <= 1080; i++)
-            {
-                for (int j = 0; j <= 1080; j++)
-                {
-                    int num = i * 1081 + j;
-                    m_backupHeights[num] = m_rawHeights[num];
-                    m_originalHeights[num] = m_rawHeights[num];
-                }
-            }
-            
+        { 
             //WriteLog("ARUT OnEnable!");
             base.OnEnable();
         }
@@ -374,15 +370,15 @@ namespace AnotherRoadUpdateTool
             base.OnDisable();
         }
 
-        protected override void OnDestroy()
+        protected override void OnToolUpdate()
         {
-            SetSettings();
-            WriteLog("ARUT sleep!");
-            base.OnDestroy();
+            //WriteLog("ARUT OnToolUpdate!");
+            base.OnToolUpdate();
         }
 
         protected override void OnToolGUI(Event e)
         {
+            //WriteLog("ARUT OnToolGUI!");
             Event current = Event.current;
 
             if (!m_active && m_UndoKey.IsPressed(current) && UndoList.Count() >= 0)
@@ -436,7 +432,7 @@ namespace AnotherRoadUpdateTool
                     //handle Services
                     else if (options[(int)ops.Services].isChecked && plServices.isVisible)
                     {
-                        if (mode != LoadMode.LoadMap || mode != LoadMode.NewMap)
+                        if (mode != LoadMode.LoadMap && mode != LoadMode.NewMap)
                             ApplyServices();
                     }
                     //handle Districts
@@ -490,7 +486,7 @@ namespace AnotherRoadUpdateTool
 
         public void InitGui(LoadMode _mode, Chirper chirp, UnlockRoads roads)
         {
-            //WriteLog("Entering InitGUI");
+            WriteLog("Entering InitGUI");
             mode = _mode;
             //store a local copy of each mod
             Chirp = chirp;
@@ -520,6 +516,8 @@ namespace AnotherRoadUpdateTool
 
                 plMain = UIView.GetAView().FindUIComponent("TSBar").AddUIComponent<UIPanel>();
 
+                plMain.anchor = UIAnchorStyle.None;
+
                 if (mode == LoadMode.LoadMap || mode == LoadMode.NewMap)
                     plMain.backgroundSprite = "GenericPanel";
                 else
@@ -542,6 +540,10 @@ namespace AnotherRoadUpdateTool
                 //btHide.zOrder = 0;
                 btHide.eventClick += btHide_eventClick;
 
+                plMain.eventMouseDown += Main_eventMouseDown;
+                plMain.eventMouseMove += Main_eventMouseMove;
+                plMain.eventMouseUp += Main_eventMouseUp;
+
                 plMain.relativePosition = new Vector2
                 (
                     RoadUpdateButton.relativePosition.x + RoadUpdateButton.width / 2.0f - plMain.width,
@@ -549,12 +551,54 @@ namespace AnotherRoadUpdateTool
                 );
 
                 //We can load the users last session
-                GetSettings(true);
+                GetSettings();
 
                 //About to set unlockable tiles
                 Areas = new MaxAreas();
+                Zones = new Helpers.Zones();
                 //WriteLog("Leaving InitGUI");
             }
+        }
+
+        private void Main_eventMouseUp(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (mouseDown == true)
+            {
+                mouseDown = false;
+                MoveCompleted();
+            }
+        }
+
+        private void Main_eventMouseMove(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (mouseDown == true)
+            {
+                try
+                {
+                    // Move the top and left according to the delta amount
+                    Vector3 delta = new Vector3(eventParam.moveDelta.x, eventParam.moveDelta.y);
+                    //Just move the Panel
+                    PanelPosition.left = (int)delta.x;
+                    PanelPosition.top = (int)delta.y;
+                }
+                catch (Exception ex)
+                {
+                    WriteError("Error in MovuseMove: ", ex);
+                }
+            }
+        }
+
+        private void Main_eventMouseDown(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            mouseDown = true;
+        }
+
+        private void MoveCompleted()
+        {
+            us.SettingsHeight = PanelPosition.height;
+            us.SettingsLeft = PanelPosition.left;
+            us.SettingsTop = PanelPosition.top;
+            us.SettingsWidth = PanelPosition.width;
         }
 
         #endregion
@@ -562,6 +606,8 @@ namespace AnotherRoadUpdateTool
         #region "Private procedures"
 
         #region "GUI Layout"
+
+        #region Panels
 
         private int CreatePanels(UIPanel panel)
         {
@@ -872,59 +918,73 @@ namespace AnotherRoadUpdateTool
             
             //Show the road type option
             plTerrain = panel.AddUIComponent<UIPanel>();
-            plTerrain.relativePosition = new Vector3(1, ply);
+            plTerrain.relativePosition = new Vector3(1, ply - 40);
             plTerrain.isVisible = false;
             plTerrain.tooltip = "Select or enter the height desired.";
 
             int x = 1;
             int y = 1;
-            string s = "Enter a value into the text box or use the sliders to set the height";
-            string t = "Select or enter the height desired.";
+            int inset = 50;
+
+            string s = "Enter a value for the new terrain height";
+            string t = "Enter the height desired.";
             addLabel(plTerrain, y, x, s, t, true);
-            int w = 80;
-            int h = 25;
+
+            y += 25;
+            s = "Current: ";
+            t = "Look here for current new Terrain height.";
+            addLabel(plTerrain, y, x, s, t, true);
+
+            s = "0.00";
+            lHeight = addLabel(plTerrain, y, x + inset, s, t, true);
+            lHeight.autoSize = false;
+            lHeight.width = 120;
+            lHeight.height = 50;
+            lHeight.textAlignment = UIHorizontalAlignment.Right;
+
+            y += 25;
             s = "Height";
-            y = 25;
             addLabel(plTerrain, y, x, s, t, true);
-            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", y, x + 125, 120, 25, "Use values between 2000 and 0.0", true, true);
+
+            tfTerrainHeight = addTextBox(plTerrain, "TerrainHeight", "0,00", y, x + inset, 120, 25, "Use values between 2000 and 0.0", true, true);
+            tfTerrainHeight.horizontalAlignment = UIHorizontalAlignment.Right;
             tfTerrainHeight.eventKeyDown += TerrainHeight_eventKeyDown;
             tfTerrainHeight.eventTextChanged += TerrainHeight_eventTextChanged;
 
-            btValidate = addButton(plTerrain, "Validate", "Validate the number in the text field.", y, x + 125 + 120, 25, 125);
+            btValidate = addButton(plTerrain, "Validate", "Validate the number in the text field.", y, x + inset + 120, 125, 25);
             btValidate.isVisible = true;
-            //btValidate.color = Color.green;
+            btValidate.state = UIButton.ButtonState.Disabled;
             btValidate.eventClick += Validate_eventClick;
 
-            //Add the Sliders
             y += 25;
-            s = "Number";
-            t = "Select the Height's " + s + " value.";
-            addLabel(plTerrain, y, x, "Numbers", t, true);
+            s = "Game Height";
+            t = "Click to load in the current Games set Terrain Height";
+            UIButton GameHeight = addButton(plTerrain, s, t, y, x, 75, 25);
+            GameHeight.eventClick += GameHeight_eventClick;
+        }
 
-            ddNumber = addDropDown(plTerrain, y, x + 125, w, h, s, t);
-            int mx = 2000;
-            for (int i = 0; i <= mx; i += 1) { ddNumber.AddItem(i.ToString()); }
-            ddNumber.selectedIndex = 0;
-            ddNumber.eventSelectedIndexChanged += Number_eventSelectedIndexChanged;
+        private void GameHeight_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            string found = "TSBar";
+            try
+            {
+                UISlicedSprite TSBar = (UISlicedSprite)UIView.GetAView().FindUIComponent("TSBar");
+                found = "OptionsBar";
+                UIPanel OptionsBar = (UIPanel)TSBar.Find("OptionsBar");
+                found = "LevelHeight";
+                UIPanel LevelHeight = (UIPanel)OptionsBar.Find("LevelHeightPanel");
+                found = "Settings";
+                UIPanel Settings = (UIPanel)LevelHeight.Find("Settings");
+                found = "Height";
+                UISlider Height = (UISlider)Settings.Find("Height");
+                found = "Parsing " + Height.value;
 
-            //add Incrament dropdown
-            ddIncrament = addDropDown(plTerrain, y, (x + 125 + w + 20), w + 20, h, "Incrament", "Change the Numbers incrament");
-            foreach (string vl in m_incraments) { ddIncrament.AddItem(vl); }
-            ddIncrament.selectedIndex = 0;
-            m_incrament = int.Parse(ddIncrament.selectedValue);
-            ddIncrament.eventSelectedIndexChanged += Incrament_eventSelectedIndexChanged;
-
-            y += 25;
-            s = "Decimal";
-            t = "Select the Height's " + s + " value.";
-            addLabel(plTerrain, y, x, s, t, true);
-            ddDecimal = addDropDown(plTerrain, y, x + 125, w, h, s, t);
-            ddDecimal.AddItem("0.00");
-            double max = 99;
-            for (int i = 1; i <= max; i += 1) { ddDecimal.AddItem(((double)((double)i / 100d)).ToString("0.00")); }
-            ddDecimal.selectedIndex = 0;
-            ddDecimal.eventSelectedIndexChanged += Decimal_eventSelectedIndexChanged;
-
+                tfTerrainHeight.text = Height.value.ToString("0.00");
+            }
+            catch (Exception ex)
+            {
+                ARUT.WriteError("Object Not found in MyITerrain.TerrainHeight. " + found, ex);
+            }
         }
 
         private void GenerateplDistricts(UIPanel panel, int ply, int plx)
@@ -980,13 +1040,16 @@ namespace AnotherRoadUpdateTool
             }
             //WriteLog("Leaving GenerateRoadPanels");
         }
-        
+
+        #endregion
+
         #region "Adding Controls"
 
         private UILabel addLabel(UIPanel panel, int yPos, int xPos, string text, bool hidden)
         {
             return addLabel(panel, yPos, xPos, text, "", hidden);
         }
+
         private UILabel addLabel(UIPanel panel, int yPos, int xPos, string text, string t, bool hidden)
         {
             //WriteLog("Entering addUILabel");
@@ -1258,14 +1321,25 @@ namespace AnotherRoadUpdateTool
             m_settings = false;
         }
 
-        private void GetSettings(bool toBasic)
+        private void GetSettings()
         {
             if (m_settings == true) { return; }
             m_settings = true;
-
+            
             string loc = "Starting";
 
-            //WriteLog("Entering GetSettings types[(int)tp.Ground].isChecked: " + types[(int)tp.Ground].isChecked);
+            //setting up our backup array
+            m_originalHeights = new ushort[m_rawHeights.Length];
+
+            for (int i = 0; i <= 1080; i++)
+            {
+                for (int j = 0; j <= 1080; j++)
+                {
+                    int num = i * 1081 + j;
+                    m_backupHeights[num] = m_rawHeights[num];
+                    m_originalHeights[num] = m_rawHeights[num];
+                }
+            }
 
             try
             {
@@ -1334,6 +1408,8 @@ namespace AnotherRoadUpdateTool
                 cbDistrictToggle.isChecked = us.DistrictToggle;
                 loc = "TerrainHeight";
                 m_terrainHeight = (float)us.TerrainHeight;
+                lHeight.text = m_terrainHeight.ToString("0.00");
+                tfTerrainHeight.text = lHeight.text;
 
                 services[(int)dl.HealthCare].isChecked = us.HealthCare;
                 services[(int)dl.PoliceDepartment].isChecked = us.PoliceDepartment;
@@ -1347,7 +1423,7 @@ namespace AnotherRoadUpdateTool
                 services[(int)dl.Monument].isChecked = us.Monument;
                 services[(int)dl.Abandoned].isChecked = us.Abandoned;
                 services[(int)dl.Burned].isChecked = us.Burned;
-
+                loc = "Chirper";
                 services[(int)dl.Chirper].isChecked = us.Chirper;
 
                 ShowDelete = us.ShowDelete;
@@ -1364,23 +1440,13 @@ namespace AnotherRoadUpdateTool
                 MaxAreas = us.MaxAreas;
                 StartMoney = us.StartMoney;
 
-                //WriteLog("On entering us.Abandoned & us.Burned are: " + us.Abandoned + " & " + us.Burned);
-
+                loc = "Chirp";
                 //we need to toggle shown or not
-                Chirp.Toggle(services[(int)dl.Chirper].isChecked);
-            
-                try
+                if (mode != LoadMode.LoadMap && mode != LoadMode.NewMap)
                 {
-                    ZoneTool zt = Singleton<ZoneTool>.instance;
-                    //WriteLog("About to try setting Zone Tool Mode to Select. zt.mode: " + zt.m_mode);
-                    zt.m_mode = ZoneTool.Mode.Select;
-                    //WriteLog("Value  of Zone Tool Mode. zt.m_mode: " + zt.m_mode);
+                    Chirp.Toggle(services[(int)dl.Chirper].isChecked);
                 }
-                catch (Exception ex)
-                {
-                    WriteError("Error setting ZoneTool Mode to Select.", ex);
-                }
-
+                loc = "ZoneTool";
             }
             catch (Exception ex)
             {
@@ -1389,7 +1455,7 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Leaving GetSettings types[(int)tp.Ground].isChecked: " + types[(int)tp.Ground].isChecked);
             m_settings = false;
         }
-
+                       
         #endregion
 
         #region "Event Process helpers"
@@ -1420,19 +1486,18 @@ namespace AnotherRoadUpdateTool
 
         private void SetTerrainEnabled()
         {
-            //WriteLog("Entering: SetTerrainEnabled m_selectable: " + m_selectable);
-            try
+            if (lHeight.text == tfTerrainHeight.text)
             {
-                //ok all checks complete
                 m_selectable = true;
                 lSelectable.text = m_updatetool + m_available;
-                tfTerrainHeight.text = m_terrainHeight.RoundToNearest(2f).ToString("0.00");
+                lInformation.text = "";
             }
-            catch (Exception ex)
+            else
             {
-                WriteError("Error in SetTerrainEnabled Exception: ", ex);
-            }
-            //WriteLog("Leaving: SetServicesEnabled m_selectable: " + m_selectable);
+                m_selectable = false;
+                lSelectable.text = m_updatetool + m_available;
+                lInformation.text = "Use the Validate button to validate your input";
+            }           
         }
 
         private void SetDistrictsEnabled()
@@ -1731,69 +1796,41 @@ namespace AnotherRoadUpdateTool
             //WriteLog("Leaving btHide_eventClick: " + plMain.isVisible);
         }
 
-        private void Decimal_eventSelectedIndexChanged(UIComponent component, int value)
-        {
-            WriteLog("Setting Decimal terrain height value from tfTerrainHeight.text to Number.text + Decimal.text: " + tfTerrainHeight.text + " to " + ddNumber.selectedValue + ddDecimal.selectedValue.Substring(1));
-            tfTerrainHeight.text = (ddNumber.text + ddDecimal.text).ToString();
-        }
-
-        private void Number_eventSelectedIndexChanged(UIComponent component, int value)
-        {
-            WriteLog("Setting Number terrain height value from tfTerrainHeight.text to Number.text + Decimal.text: " + tfTerrainHeight.text + " to " + ddNumber.selectedValue + ddDecimal.selectedValue.Substring(1));
-            tfTerrainHeight.text = (ddNumber.text + ddDecimal.text).ToString();
-        }
-        
-        private void Incrament_eventSelectedIndexChanged(UIComponent component, int value)
-        {
-            WriteLog("Entering Incrament_eventSelectedIndexChanged: ddNumber.Lenght: " + ddNumber.items.Length + " value = " + value);
-            m_incrament = int.Parse(ddIncrament.selectedValue);
-            List<string> vls = new List<string>();
-            int mx = 2000;
-            for (int i = 0; i <= mx; i += m_incrament) { vls.Add(i.ToString()); }
-            ddNumber.items = vls.ToArray();
-            WriteLog("Exiting Incrament_eventSelectedIndexChanged: ddNumber.Lenght: " + ddNumber.items.Length);
-        }
-
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
         {
-            //disable select untill validated
-            lInformation.text = "Use the Validate button to validate your unput";
+            SetTerrainEnabled();
         }
 
         private void TerrainHeight_eventKeyDown(UIComponent component, UIKeyEventParameter eventParam)
         {
-            //if ((eventParam.keycode >= KeyCode.Alpha0 && eventParam.keycode <= KeyCode.Alpha9) || eventParam.keycode <= KeyCode.Period) { }
-            //else
-            //{ eventParam = null;  }
+            if ((eventParam.keycode >= KeyCode.Alpha0 && eventParam.keycode <= KeyCode.Alpha9) || eventParam.keycode <= KeyCode.Period) { }
+            else
+            { eventParam = null;  }
         }
 
         private void Validate_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
+            if (btValidate.state == UIButton.ButtonState.Disabled) { return; }
+
             string raw = tfTerrainHeight.text;
             double val;
             if (double.TryParse(raw, out val) == true)
             {
                 if (val > 2000)
                 {
-                    ddNumber.selectedValue = "2000";
-                    ddDecimal.selectedValue = "0.00";
                     tfTerrainHeight.text = "2000.00";
                 }
                 else if (val < 0)
                 {
-                    ddNumber.selectedValue = "0";
-                    ddDecimal.selectedValue = "0.00";
-                    tfTerrainHeight.text = "2000.00";
+                    tfTerrainHeight.text = "0.00";
                 }
                 else
                 {
-                    int nbr = (int)val;
-                    double dec = val - nbr;
-                    ddNumber.selectedValue = nbr.ToString();
-                    ddDecimal.selectedValue = ((int)(dec * 100)).ToString();
                     tfTerrainHeight.text = val.ToString("0.00");
                 }
-                m_terrainHeight = (float)val; 
+                m_terrainHeight = (float)val;
+                lHeight.text = val.ToString("0.00");
+                SetTerrainEnabled();
             }
         }
 

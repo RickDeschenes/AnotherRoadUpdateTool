@@ -1,4 +1,5 @@
-﻿using ICities;
+﻿using ColossalFramework.UI;
+using ICities;
 using System;
 using UnityEngine;
 
@@ -15,6 +16,14 @@ namespace AnotherRoadUpdateTool.Helpers
         }
 
         public float cellSize
+        {
+            get
+            {
+                return 0;
+            }
+        }
+
+        public double TerrainHeight
         {
             get
             {

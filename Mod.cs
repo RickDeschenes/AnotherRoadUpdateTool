@@ -69,8 +69,8 @@ namespace AnotherRoadUpdateTool
             cbServices = (UICheckBox)group.AddCheckbox("Services panel", us.ShowServices, ShowServices_Checked);
             cbServices.tooltip = "Toggle to show or hide Services panel";
 
-            cbDistricts = (UICheckBox)group.AddCheckbox("Services panel", us.ShowDistricts, ShowDistricts_Checked);
-            cbDistricts.tooltip = "Toggle to show or hide Services panel";
+            cbDistricts = (UICheckBox)group.AddCheckbox("Districts panel", us.ShowDistricts, ShowDistricts_Checked);
+            cbDistricts.tooltip = "Toggle to show or hide Districts panel";
 
             cbChirper = (UICheckBox)group.AddCheckbox("Chirper panel ", us.Chirper, ShowChirper_Checked);
             cbChirper.tooltip = "Toggle to show or hide Chirper panel";
