@@ -21,25 +21,6 @@ namespace AnotherRoadUpdateTool.Helpers
             Curve = 4
         }
 
-        private enum p
-        {
-            Roads = 0,
-            Railroads = 1,
-            Highways = 2,
-            PowerLines = 3,
-            WaterPipes = 4,
-            HeatPipes = 5,
-            Airplanes = 6,
-            Shipping = 7,
-            Pedestrian = 8,
-            Bicycle = 9,
-            Tram = 10,
-            Metro = 11,
-            Buildings = 12,
-            Trees = 13,
-            Props = 14
-        }
-
         internal Vector3 m_startPosition;
         internal Vector3 m_mousePosition;
         internal List<UICheckBox> deletes = new List<UICheckBox>();
@@ -67,8 +48,9 @@ namespace AnotherRoadUpdateTool.Helpers
             {
                 if (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20)
                 {
-                    //ARUT.WriteLog("Math.Abs(m_startPosition.x - m_mousePosition.x) + '' : '' + Math.Abs(m_startPosition.y - m_mousePosition.y) :" + xy);
-                    //ARUT.WriteLog("(Math.Abs(m_startPosition.y - m_mousePosition.y) < 20 :" + (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20));
+                    xy += "Math.Abs(m_startPosition.x - m_mousePosition.x) + '' : '' + Math.Abs(m_startPosition.y - m_mousePosition.y) :" + xy;
+                    xy += "\n(Math.Abs(m_startPosition.y - m_mousePosition.y) < 20 :" + (Math.Abs(m_startPosition.y - m_mousePosition.y) < 20);
+                    ARUT.WriteLog(xy);
                     return;
                 }
             }
@@ -235,7 +217,7 @@ namespace AnotherRoadUpdateTool.Helpers
             Vector2 v1 = new Vector2(deg1.x, deg1.z);
             Vector2 v2 = new Vector2(deg2.x, deg2.z);
 
-            // WriteLog("v1 & v2 are: " + v1 + " & " + v2);
+            // ARUT.WriteLog("v1 & v2 are: " + v1 + " & " + v2);
 
             float a1 = Vector2.Angle(new Vector2(), v1);
             float a2 = Vector2.Angle(new Vector2(), v2);

@@ -59,6 +59,7 @@
     <Compile Include="Helpers\Chirper.cs" />
     <Compile Include="Helpers\PanelMain.cs" />
     <Compile Include="Helpers\TerrainChanges.cs" />
+    <Compile Include="Helpers\ToggleServices.cs" />
     <Compile Include="Helpers\UpdateObjects.cs" />
     <Compile Include="Helpers\Zones.cs" />
     <Compile Include="Mod.cs" />
