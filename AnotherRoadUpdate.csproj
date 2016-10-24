@@ -7,8 +7,8 @@
     <ProjectGuid>{31DA1728-2341-409B-B3D9-01428618DD77}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>AnotherRoadUpdate</RootNamespace>
-    <AssemblyName>AnotherRoadUpdate</AssemblyName>
+    <RootNamespace>AnotherRoadUpdateTool</RootNamespace>
+    <AssemblyName>AnotherRoadUpdateTool</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -31,7 +31,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>Dozer64.ico</ApplicationIcon>
+    <ApplicationIcon>Helpers\Dozer64.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
@@ -53,27 +53,39 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AnotherRoadUpdate.cs" />
+    <Compile Include="ARUT.cs" />
+    <Compile Include="Helpers\DeleteObjects.cs" />
+    <Compile Include="Helpers\DestroyMonitor.cs" />
+    <Compile Include="Helpers\Chirper.cs" />
+    <Compile Include="Helpers\PanelMain.cs" />
+    <Compile Include="Helpers\TerrainChanges.cs" />
+    <Compile Include="Helpers\ToggleServices.cs" />
+    <Compile Include="Helpers\UpdateObjects.cs" />
+    <Compile Include="Helpers\Zones.cs" />
     <Compile Include="Mod.cs" />
+    <Compile Include="Helpers\MyITerrain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="UserSettings.cs" />
+    <Compile Include="Helpers\UnlockAreas.cs" />
+    <Compile Include="Helpers\UnlockRoads.cs" />
+    <Compile Include="Helpers\UserSettings.cs" />
+    <Compile Include="Properties\Settings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Dozer64.ico" />
+    <Content Include="Helpers\Dozer64.ico" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="app.config" />
-    <EmbeddedResource Include="ARUT.pdf" />
+    <EmbeddedResource Include="Helpers\ARUT.pdf" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
