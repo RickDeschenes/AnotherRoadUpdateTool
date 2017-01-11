@@ -142,10 +142,6 @@ namespace AnotherRoadUpdateTool
         {
             WriteLog("ARUT awake!");
             m_active = false;
-
-            UndoList = new BindingList<UndoStroke>();
-            Dozer = new DestroyMonitor();
-
             base.Awake();
         }
 
@@ -154,6 +150,23 @@ namespace AnotherRoadUpdateTool
             SetSettings();
             WriteLog("ARUT OnDestroy!");
             base.OnDestroy();
+        }
+
+        protected override void OnEnable()
+        {
+            WriteLog("ARUT OnEnable!");
+            UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
+
+            base.OnEnable();
+        }
+
+        protected override void OnDisable()
+        {
+            if (plMain != null)
+                plMain.isVisible = false;
+
+            WriteLog("ARUT OnDisable!");
+            base.OnDisable();
         }
 
         protected override void OnToolUpdate()
@@ -330,6 +343,8 @@ namespace AnotherRoadUpdateTool
                 //About to set unlockable tiles
                 Areas = new MaxAreas();
                 Zones = new Zones();
+                UndoList = new BindingList<UndoStroke>();
+                Dozer = new DestroyMonitor();
                 //WriteLog("Leaving InitGUI");
             }
         }
