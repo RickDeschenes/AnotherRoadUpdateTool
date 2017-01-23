@@ -243,11 +243,36 @@ namespace AnotherRoadUpdateTool.Helpers
 
         #region Class
 
-        public override void Start()
+        public override void Awake()
         {
-            base.Start();
+            ARUT.WriteLog("Main Awake!");
+            base.Awake();
         }
 
+        public override void OnDestroy()
+        {
+            ARUT.WriteLog("Main OnDestroy!");
+            base.OnDestroy();
+        }
+
+        public override void OnDisable()
+        {
+            ARUT.WriteLog("Main OnDisable!");
+            base.OnDisable();
+        }
+
+        public override void OnEnable()
+        {
+            ARUT.WriteLog("Main OnEnable!");
+            base.OnEnable();
+        }
+
+        public override void Start()
+        {
+            ARUT.WriteLog("Main Start!");
+            base.Start();
+        }
+        
         public PanelMain()
         {
 
@@ -274,7 +299,7 @@ namespace AnotherRoadUpdateTool.Helpers
 
             this.size = new Vector2(575, height);
 
-            ARUT.WriteLog("setting lbTitle");
+            //ARUT.WriteLog("setting lbTitle");
             lbTitle = addLabel(this, 1, 1, "ARUT - Another 'Road' Update Tool", "All your Mods in one control", false);
             lbTitle.autoSize = false;
             lbTitle.isVisible = true;
@@ -290,24 +315,24 @@ namespace AnotherRoadUpdateTool.Helpers
             lbTitle.eventMouseMove += Title_eventMouseMove;
             lbTitle.eventMouseUp += Title_eventMouseUp;
 
-            ARUT.WriteLog("setting btHelp");
+            //ARUT.WriteLog("setting btHelp");
             string tooltip = "I will try to open a pdf file, if you do not have a viewer.... do not click.";
             btHelp = addButton(this, "¿", tooltip, (int)this.height - 25, (int)this.width - 25, 25, 25);
             btHelp.isVisible = true;
             //btHelp.zOrder = 0;
             btHelp.eventDoubleClick += btHelp_eventDoubleClick;
 
-            ARUT.WriteLog("setting btHide");
+            //ARUT.WriteLog("setting btHide");
             tooltip = "I will try to close the option panel.";
             btHide = addButton(this, "Close", tooltip, (int)this.height - 25, 1, 75, 25);
             btHide.isVisible = true;
             //btHide.zOrder = 0;
             btHide.eventClick += btHide_eventClick;
 
-            ARUT.WriteLog("setting Mouse and Size events");
+            //ARUT.WriteLog("setting Mouse and Size events");
             this.eventSizeChanged += Main_eventSizeChanged;
 
-            this.relativePosition = new Vector2(575, 525);
+            //this.relativePosition = new Vector2(575, 525);
 
             ARUT.WriteLog("Going to create panels");
             //Create the panels (Little like a tab view)
@@ -370,18 +395,7 @@ namespace AnotherRoadUpdateTool.Helpers
         #region "Form Move Events"
 
         private void Main_eventSizeChanged(UIComponent component, Vector2 value)
-        {
-            if (Width < 250)
-                Width = 250;
-            if (Height < 400)
-                Height = 400;
-            //set the values
-            if (this.width > Width)
-                this.width = Width;
-            if (this.height > Height)
-                this.height = Height;
-            lbTitle.width = this.width;
-        }
+        { lbTitle.width = this.width; }
 
         private void Title_eventMouseUp(UIComponent component, UIMouseEventParameter eventParam)
         { mouseDown = false; }
@@ -396,6 +410,9 @@ namespace AnotherRoadUpdateTool.Helpers
                     Vector3 delta = new Vector3(eventParam.moveDelta.x, eventParam.moveDelta.y);
                     //Just move the Panel
                     this.position += delta;
+
+                    //record the new left and top
+                    
                 }
                 catch (Exception ex)
                 {
@@ -405,9 +422,7 @@ namespace AnotherRoadUpdateTool.Helpers
         }
 
         private void Title_eventMouseDown(UIComponent component, UIMouseEventParameter eventParam)
-        {
-            mouseDown = true;
-        }
+        { mouseDown = true; }
 
         #endregion "Form Move Events"
         
@@ -1023,13 +1038,7 @@ namespace AnotherRoadUpdateTool.Helpers
         private void btHide_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
             //we need to end all options, turn off select (Updates, Deletes, Terrain, Services)
-            m_selectable = false;
-            //m_bool = false;
-            //m_bool = false;
-            //m_bool = false;
-            //m_bool = false;
-            this.isVisible = false;
-            this.enabled = false;
+            this.isVisible = !this.isVisible;
         }
 
         private void TerrainHeight_eventTextChanged(UIComponent component, string value)
@@ -1551,7 +1560,7 @@ namespace AnotherRoadUpdateTool.Helpers
                 //is delete enabled?
                 if (options[(int)ops.Deletes].isChecked == false)
                 {
-                    ARUT.WriteLog("Leaving: SetSelectionEnabled 'Deletes not checked' m_selectable: " + m_selectable);
+                    //ARUT.WriteLog("Leaving: SetSelectionEnabled 'Deletes not checked' m_selectable: " + m_selectable);
                     return;
                 }
 
@@ -1559,7 +1568,7 @@ namespace AnotherRoadUpdateTool.Helpers
                 if (types.Any(o => o.isChecked == true)) { }
                 else
                 {
-                    ARUT.WriteLog("Leaving: SetSelectionEnabled 'No types selected' m_selectable: " + m_selectable);
+                    //ARUT.WriteLog("Leaving: SetSelectionEnabled 'No types selected' m_selectable: " + m_selectable);
                     return;
                 }
                 //do we have anything checked to delete?

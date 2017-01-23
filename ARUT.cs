@@ -41,14 +41,6 @@ namespace AnotherRoadUpdateTool
 
         #region Variables
 
-        private struct Position
-        {
-            internal int top;
-            internal int left;
-            internal int height;
-            internal int width;
-        }
-
         internal static UserSettings us = new UserSettings();
 
         internal static int segcount = 0;
@@ -102,8 +94,7 @@ namespace AnotherRoadUpdateTool
 
         private bool m_active;
         private bool m_settings;
-
-        private Position PanelPosition;
+        
         private Vector3 m_startPosition;
         private Vector3 m_endPosition;
         private Vector3 m_startDirection;
@@ -140,9 +131,18 @@ namespace AnotherRoadUpdateTool
 
         protected override void Awake()
         {
-            WriteLog("ARUT awake!");
+            WriteLog("ARUT awake! + m_active: " + m_active);
             m_active = false;
+
             base.Awake();
+        }
+        
+        protected override void OnEnable()
+        {
+            WriteLog("ARUT OnEnable!");
+            UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
+
+            base.OnEnable();
         }
 
         protected override void OnDestroy()
@@ -152,19 +152,9 @@ namespace AnotherRoadUpdateTool
             base.OnDestroy();
         }
 
-        protected override void OnEnable()
-        {
-            WriteLog("ARUT OnEnable!");
-            UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
-
-            base.OnEnable();
-        }
-
         protected override void OnDisable()
         {
-            if (plMain != null)
-                plMain.isVisible = false;
-
+            //WriteLog("ARUT OnDisable Stack: " + new System.Diagnostics.StackTrace(true).ToString());
             WriteLog("ARUT OnDisable!");
             base.OnDisable();
         }
@@ -177,22 +167,12 @@ namespace AnotherRoadUpdateTool
 
         protected override void OnToolGUI(Event e)
         {
-            //WriteLog("ARUT OnToolGUI!");
-            Event current = Event.current;
+            //WriteLog("ARUT OnToolGUI! plMain.Selectable: " + plMain.Selectable);
+            //Event current = Event.current;
 
-            if (!m_active && m_UndoKey.IsPressed(current) && UndoList.Count() >= 0)
+            if (!m_active && m_UndoKey.IsPressed(e) && UndoList.Count() >= 0)
             {
                 ApplyUndo();
-            }
-            if (e.type == EventType.KeyDown)
-            {
-                if (e.keyCode == KeyCode.Escape)
-                {
-                    Event.current.Equals(null);
-                    //e.keyCode = KeyCode.Asterisk;
-                    this.enabled = false;
-                    plMain.isVisible = false;
-                }
             }
 
             if (e.type == EventType.MouseDown && m_mouseRayValid && plMain.Selectable)
@@ -325,20 +305,27 @@ namespace AnotherRoadUpdateTool
                 plMain.Mode = mode;
                 plMain.transform.parent = view.transform;
                 plMain.isVisible = true;
-                plMain.canFocus = true;
-                plMain.isInteractive = true;
-                plMain.relativePosition = new Vector3(572, 525);
+                //plMain.canFocus = true;
+                //plMain.isInteractive = true;
+                //plMain.relativePosition = new Vector3(572, 525);
 
                 plMain.backgroundSprite = "MenuPanel2";
+
+                plMain.eventPositionChanged += PlMain_eventPositionChanged;
                 plMain.CreateObjects();
 
-                WriteLog("About to set GetSettings in InitGUI");
+                //WriteLog("About to set GetSettings in InitGUI");
                 //We can load the users last session
                 GetSettings();
+                //we can set to top, left based on the last position
+                WriteLog("plMain us.Left, us.Top: " + us.Left + "x" + us.Top);
+                plMain.relativePosition = new Vector3(us.Top, us.Left);
+                WriteLog("plMain relativePosition: " + plMain.relativePosition);
+                WriteLog("plMain Position: " + plMain.position);
 
                 plMain.RefreshView();
 
-                WriteLog("About to set Areas and Zones in InitGUI");
+                //WriteLog("About to set Areas and Zones in InitGUI");
 
                 //About to set unlockable tiles
                 Areas = new MaxAreas();
@@ -347,6 +334,15 @@ namespace AnotherRoadUpdateTool
                 Dozer = new DestroyMonitor();
                 //WriteLog("Leaving InitGUI");
             }
+        }
+
+        private void PlMain_eventPositionChanged(UIComponent component, Vector2 value)
+        {
+            //recoird new top and left
+            us.Top = (int)plMain.relativePosition.x;
+            us.Left = (int)plMain.relativePosition.y;
+            //WriteLog("plMain relativePosition: " + plMain.relativePosition);
+            //WriteLog("plMain Position: " + plMain.position);
         }
 
         internal static void SetChirper(bool value)
@@ -435,14 +431,8 @@ namespace AnotherRoadUpdateTool
             us.AllRoads = AllRoads;
             us.AutoDistroy = AutoDistroy;
 
-            us.Left = PanelPosition.left;
-            us.Top = PanelPosition.top;
-            us.Height = PanelPosition.height;
-            us.Width = PanelPosition.width;
-
             us.MaxAreas = MaxAreas;
             us.StartMoney = StartMoney;
-
             us.Save();
             
             m_settings = false;
@@ -564,15 +554,10 @@ namespace AnotherRoadUpdateTool
 
                 MaxAreas = us.MaxAreas;
                 StartMoney = us.StartMoney;
-
-                PanelPosition.left = us.Left;
-                PanelPosition.top = us.Top;
-                PanelPosition.height = us.Height;
-                PanelPosition.width = us.Width;
-
+                
                 loc = "Chirp";
                 //we need to toggle shown or not
-                if (mode != LoadMode.LoadMap && mode != LoadMode.NewMap)
+                if (mode == LoadMode.NewGame || mode == LoadMode.LoadGame || mode == LoadMode.NewGameFromScenario)
                 {
                     Chirp.Toggle(plMain.Services(PanelMain.sr.Chirper));
                 }
@@ -592,7 +577,9 @@ namespace AnotherRoadUpdateTool
         
         private void Button_Clicked(UIComponent component, UIMouseEventParameter eventParam)
         {
+            WriteLog("Setting plMain: " + !plMain.isVisible);
             plMain.isVisible = !plMain.isVisible;
+            this.enabled = plMain.isVisible;
         }
 
         #endregion

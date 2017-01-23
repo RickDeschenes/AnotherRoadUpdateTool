@@ -207,6 +207,7 @@ namespace AnotherRoadUpdateTool
             {
                 GameObject gameController = GameObject.FindWithTag("GameController");
                 updateTool = gameController.AddComponent<ARUT>();
+                //ARUT.WriteLog("Setting Game Controller to updatetool object.");
             }
 
             if (mode == LoadMode.NewGame)
@@ -217,13 +218,14 @@ namespace AnotherRoadUpdateTool
                     var cashAmountField = type.GetField("m_cashAmount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
                     cashAmountField.SetValue(EconomyManager.instance, ARUT.StartMoney * 100);
-                    ARUT.WriteLog("Set Cash Amount to " + ARUT.StartMoney.ToString("$0.00"));
+                    //ARUT.WriteLog("Set Cash Amount to " + ARUT.StartMoney.ToString("$0.00"));
                 }
                 catch (Exception ex)
                 {
                     ARUT.WriteError("Error setting Cash Amount", ex);
                 }
             }
+            //ARUT.WriteLog("Calling InitGui.");
             updateTool.InitGui(mode, chirp, roads);
         }
     }
