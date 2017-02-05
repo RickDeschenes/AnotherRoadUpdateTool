@@ -210,7 +210,7 @@ namespace AnotherRoadUpdateTool
                 //ARUT.WriteLog("Setting Game Controller to updatetool object.");
             }
 
-            if (mode == LoadMode.NewGame)
+            if (mode == LoadMode.NewGame && ARUT.AdjustMoney == true)
             {
                 try
                 {

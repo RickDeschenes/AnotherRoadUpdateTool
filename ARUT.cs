@@ -141,7 +141,7 @@ namespace AnotherRoadUpdateTool
         {
             WriteLog("ARUT OnEnable!");
             UIView.GetAView().FindUIComponent<UITabstrip>("MainToolstrip").selectedIndex = -1;
-
+            plMain.isVisible = true;
             base.OnEnable();
         }
 
@@ -156,6 +156,7 @@ namespace AnotherRoadUpdateTool
         {
             //WriteLog("ARUT OnDisable Stack: " + new System.Diagnostics.StackTrace(true).ToString());
             WriteLog("ARUT OnDisable!");
+            plMain.isVisible = false;
             base.OnDisable();
         }
 
@@ -169,6 +170,9 @@ namespace AnotherRoadUpdateTool
         {
             //WriteLog("ARUT OnToolGUI! plMain.Selectable: " + plMain.Selectable);
             //Event current = Event.current;
+
+            if (plMain.isVisible == false)
+                return;
 
             if (!m_active && m_UndoKey.IsPressed(e) && UndoList.Count() >= 0)
             {
